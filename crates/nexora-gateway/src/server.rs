@@ -15,7 +15,8 @@ use crate::routes::{
     health, marketplace_check_updates, marketplace_get, marketplace_install, marketplace_list,
     marketplace_list_installed, marketplace_process_auto_updates, marketplace_publish,
     marketplace_rollback_package, marketplace_search, marketplace_uninstall,
-    marketplace_update_package, openapi, GatewayState,
+    marketplace_update_package, openapi, workflow_get, workflow_list, workflow_list_executions,
+    workflow_register, workflow_stats, workflow_trigger, GatewayState,
 };
 use axum::{
     middleware::from_fn_with_state,
@@ -49,17 +50,20 @@ impl GatewayServer {
         auth: Arc<AuthService>,
         marketplace: Arc<nexora_marketplace::MarketplaceService>,
         billing: Arc<nexora_billing::BillingService>,
+        workflow: Arc<nexora_workflow::WorkflowService>,
     ) -> Self {
         let auth_handler = Arc::new(nexora_auth::AuthHandler::new(auth.clone()));
         let core_handler = Arc::new(nexora_core::CoreHandler::new(core.clone()));
         let marketplace_handler = Arc::new(marketplace.handler());
         let billing_handler = Arc::new(billing.handler());
+        let workflow_handler = Arc::new(workflow.handler());
         Self {
             state: GatewayState {
                 auth: auth_handler,
                 core: core_handler,
                 marketplace: marketplace_handler,
                 billing: billing_handler,
+                workflow: workflow_handler,
                 ready: true,
             },
         }
@@ -106,6 +110,12 @@ impl GatewayServer {
             .route("/api/billing/subscriptions", get(billing_list_subscriptions).post(billing_create_subscription))
             .route("/api/billing/subscriptions/:id/cancel", post(billing_cancel_subscription))
             .route("/api/billing/stats", get(billing_stats))
+            // Workflow routes
+            .route("/api/workflows", get(workflow_list).post(workflow_register))
+            .route("/api/workflows/:id", get(workflow_get))
+            .route("/api/workflows/:id/trigger", post(workflow_trigger))
+            .route("/api/workflows/executions", get(workflow_list_executions))
+            .route("/api/workflows/stats", get(workflow_stats))
             .layer(from_fn_with_state(auth_middleware, require_token));
 
         Router::new()
@@ -176,7 +186,8 @@ mod tests {
             .unwrap();
         let marketplace = Arc::new(nexora_marketplace::MarketplaceService::new(core.clone()));
         let billing = Arc::new(nexora_billing::BillingService::new(core.clone()));
-        GatewayServer::new(core, auth, marketplace, billing)
+        let workflow = Arc::new(nexora_workflow::WorkflowService::new(core.clone()));
+        GatewayServer::new(core, auth, marketplace, billing, workflow)
     }
 
     #[tokio::test]

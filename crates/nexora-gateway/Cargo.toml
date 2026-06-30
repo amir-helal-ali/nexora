@@ -13,6 +13,7 @@ nexora-core = { path = "../nexora-core" }
 nexora-auth = { path = "../nexora-auth" }
 nexora-marketplace = { path = "../nexora-marketplace" }
 nexora-billing = { path = "../nexora-billing" }
+nexora-workflow = { path = "../nexora-workflow" }
 tokio.workspace = true
 tokio-stream = { version = "0.1", features = ["sync"] }
 axum.workspace = true

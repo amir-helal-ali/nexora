@@ -20,6 +20,7 @@ use nexora_auth::AuthHandler;
 use nexora_billing::BillingHandler;
 use nexora_core::CoreHandler;
 use nexora_marketplace::MarketplaceHandler;
+use nexora_workflow::WorkflowHandler;
 use nxp_core::Opcode;
 use nxp_payload::Encoding;
 use serde::{Deserialize, Serialize};
@@ -40,6 +41,8 @@ pub struct GatewayState {
     pub marketplace: Arc<MarketplaceHandler>,
     /// Billing handler (in-process).
     pub billing: Arc<BillingHandler>,
+    /// Workflow handler (in-process).
+    pub workflow: Arc<WorkflowHandler>,
     /// Whether the gateway is ready to serve traffic.
     pub ready: bool,
 }
@@ -672,6 +675,84 @@ pub async fn billing_stats(
     }
 }
 
+// ==================================================================
+// Workflow routes (protected — require Bearer token)
+// ==================================================================
+
+/// `GET /api/workflows` — list all workflows.
+pub async fn workflow_list(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> Response {
+    match state.workflow.execute("workflow.list", &json!({})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// `POST /api/workflows` — register a new workflow.
+pub async fn workflow_register(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Json(body): Json<Value>,
+) -> Response {
+    match state.workflow.execute("workflow.register", &body).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::BAD_REQUEST, &e.to_string()),
+    }
+}
+
+/// `GET /api/workflows/:id` — get a workflow.
+pub async fn workflow_get(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> Response {
+    match state.workflow.execute("workflow.get", &json!({ "id": id })).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::NOT_FOUND, &e.to_string()),
+    }
+}
+
+/// `POST /api/workflows/:id/trigger` — manually trigger a workflow.
+pub async fn workflow_trigger(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+    Json(body): Json<Value>,
+) -> Response {
+    let mut args = json!({ "id": id });
+    if let Some(payload) = body.get("payload") {
+        args["payload"] = payload.clone();
+    }
+    match state.workflow.execute("workflow.trigger", &args).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::BAD_REQUEST, &e.to_string()),
+    }
+}
+
+/// `GET /api/workflows/executions` — list all executions.
+pub async fn workflow_list_executions(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> Response {
+    match state.workflow.execute("workflow.list_executions", &json!({})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// `GET /api/workflows/stats` — workflow summary stats.
+pub async fn workflow_stats(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> Response {
+    match state.workflow.execute("workflow.stats", &json!({})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
 fn error_response(status: StatusCode, message: &str) -> Response {
     (
         status,
@@ -704,11 +785,13 @@ mod tests {
             .unwrap();
         let marketplace = std::sync::Arc::new(nexora_marketplace::MarketplaceService::new(core.clone()));
         let billing = std::sync::Arc::new(nexora_billing::BillingService::new(core.clone()));
+        let workflow = std::sync::Arc::new(nexora_workflow::WorkflowService::new(core.clone()));
         GatewayState {
             auth: std::sync::Arc::new(AuthHandler::new(auth.clone())),
             core: std::sync::Arc::new(CoreHandler::new(core.clone())),
             marketplace: std::sync::Arc::new(marketplace.handler()),
             billing: std::sync::Arc::new(billing.handler()),
+            workflow: std::sync::Arc::new(workflow.handler()),
             ready: true,
         }
     }

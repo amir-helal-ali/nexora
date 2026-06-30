@@ -11,6 +11,7 @@ members = [
     "crates/nexora-gateway",
     "crates/nexora-marketplace",
     "crates/nexora-billing",
+    "crates/nexora-workflow",
     "crates/nexora-storage",
     "crates/nxp-cli",
     "demo",
