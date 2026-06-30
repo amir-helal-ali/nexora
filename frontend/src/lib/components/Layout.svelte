@@ -11,6 +11,7 @@
     { href: '/modules', label: 'Modules' },
     { href: '/marketplace', label: 'Marketplace' },
     { href: '/billing', label: 'Billing' },
+    { href: '/terminal', label: 'Terminal' },
     { href: '/health', label: 'Health' },
   ];
 </script>

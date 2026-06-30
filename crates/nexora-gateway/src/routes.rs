@@ -9,7 +9,10 @@
 
 use crate::middleware::AuthContext;
 use axum::{
-    extract::{Path, Query, State},
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        Path, Query, State,
+    },
     http::StatusCode,
     response::{
         sse::{Event as SseEvent, KeepAlive, Sse},
@@ -750,6 +753,179 @@ pub async fn workflow_stats(
     match state.workflow.execute("workflow.stats", &json!({})).await {
         Ok(v) => Json(v).into_response(),
         Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+// ==================================================================
+// WebSocket route (protected — token via query param like SSE)
+// ==================================================================
+
+/// Query params for WebSocket connection.
+#[derive(Debug, Deserialize)]
+pub struct WsQuery {
+    /// Auth token (same fallback as SSE — EventSource/WebSocket can't set headers).
+    #[serde(default)]
+    pub token: Option<String>,
+}
+
+/// `GET /api/ws` — WebSocket endpoint for bidirectional real-time communication.
+///
+/// Clients send JSON messages of the form:
+/// ```json
+/// {"type": "ping"}
+/// {"type": "publish_event", "name": "test.event", "payload": "hello"}
+/// {"type": "subscribe", "filter": "user."}
+/// {"type": "core_ping"}
+/// {"type": "billing_stats"}
+/// {"type": "workflow_stats"}
+/// ```
+///
+/// Server responds with JSON messages:
+/// ```json
+/// {"type": "pong", "timestamp": 123}
+/// {"type": "event", "id": 5, "name": "test.event", "payload": "...", "timestamp": 123}
+/// {"type": "result", "ok": true, "data": {...}}
+/// {"type": "error", "message": "..."}
+/// ```
+pub async fn ws_handler(
+    State(state): State<GatewayState>,
+    Query(q): Query<WsQuery>,
+    ws: WebSocketUpgrade,
+) -> Response {
+    // Validate token.
+    let token_str = match q.token {
+        Some(t) => t,
+        None => return error_response(StatusCode::UNAUTHORIZED, "missing token"),
+    };
+    let token = match nexora_auth::SessionToken::from_str(&token_str) {
+        Ok(t) => t,
+        Err(e) => return error_response(StatusCode::UNAUTHORIZED, &format!("invalid token: {}", e)),
+    };
+    let claims = match state.auth.service().tokens.verify(&token) {
+        Ok(c) => c,
+        Err(e) => {
+            let msg = match e {
+                nexora_auth::TokenError::Expired => "token expired",
+                nexora_auth::TokenError::Revoked => "token revoked",
+                _ => "invalid token",
+            };
+            return error_response(StatusCode::UNAUTHORIZED, msg);
+        }
+    };
+
+    // Upgrade to WebSocket.
+    ws.on_upgrade(move |socket| handle_ws(socket, state, claims))
+}
+
+/// Handle a WebSocket connection.
+async fn handle_ws(socket: WebSocket, state: GatewayState, claims: nexora_auth::token::TokenClaims) {
+    use futures_util::{SinkExt as _, StreamExt as _};
+    let (mut sender, mut receiver) = socket.split();
+
+    // Subscribe to live events so we can push them to the client.
+    let event_sub = state.core.core().events.subscribe(String::new());
+    let mut event_rx = tokio_stream::wrappers::BroadcastStream::new(event_sub.rx);
+
+    // Send welcome message.
+    let welcome = json!({
+        "type": "connected",
+        "message": "WebSocket connected. Send {\"type\":\"ping\"} to test.",
+        "user_id": claims.sub,
+    });
+    let _ = sender.send(Message::Text(welcome.to_string())).await;
+
+    // Main loop: listen on both the client messages and the event stream.
+    loop {
+        tokio::select! {
+            // Client sent a message.
+            msg = futures_util::StreamExt::next(&mut receiver) => {
+                match msg {
+                    Some(Ok(Message::Text(text))) => {
+                        let resp = handle_ws_message(&text, &state).await;
+                        let _ = sender.send(Message::Text(resp)).await;
+                    }
+                    Some(Ok(Message::Close(_))) | None => break,
+                    _ => {} // ignore binary/ping/pong
+                }
+            }
+            // Event bus published something.
+            evt = futures_util::StreamExt::next(&mut event_rx) => {
+                if let Some(Ok(event)) = evt {
+                    let evt_json = json!({
+                        "type": "event",
+                        "id": event.id,
+                        "name": event.name,
+                        "payload": match &event.payload {
+                            nexora_core::events::EventPayload::Text(s) => s.clone(),
+                            nexora_core::events::EventPayload::Bytes(b) => hex::encode(b),
+                            nexora_core::events::EventPayload::Empty => String::new(),
+                        },
+                        "timestamp": event.timestamp,
+                    });
+                    let _ = sender.send(Message::Text(evt_json.to_string())).await;
+                }
+            }
+        }
+    }
+}
+
+/// Handle a single WebSocket message and return a JSON response string.
+async fn handle_ws_message(text: &str, state: &GatewayState) -> String {
+    let msg: Value = match serde_json::from_str(text) {
+        Ok(v) => v,
+        Err(e) => return json!({ "type": "error", "message": format!("invalid JSON: {}", e) }).to_string(),
+    };
+
+    let msg_type = msg.get("type").and_then(|v| v.as_str()).unwrap_or("");
+
+    match msg_type {
+        "ping" => json!({
+            "type": "pong",
+            "timestamp": std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis())
+                .unwrap_or(0),
+        }).to_string(),
+
+        "publish_event" => {
+            let name = msg.get("name").and_then(|v| v.as_str()).unwrap_or("");
+            let payload = msg.get("payload").and_then(|v| v.as_str()).unwrap_or("");
+            let id = state.core.core().events.publish(name, payload.to_string());
+            json!({ "type": "result", "ok": true, "event_id": id }).to_string()
+        }
+
+        "core_ping" => {
+            match state.core.dispatch(nxp_core::Opcode::Ping, &[], nxp_payload::Encoding::MessagePack).await {
+                Ok(resp) => {
+                    let value: Value = rmp_serde::from_slice(&resp).unwrap_or(json!({}));
+                    json!({ "type": "result", "ok": true, "data": value }).to_string()
+                }
+                Err(e) => json!({ "type": "error", "message": e.to_string() }).to_string(),
+            }
+        }
+
+        "billing_stats" => {
+            match state.billing.execute("billing.stats", &json!({})).await {
+                Ok(v) => json!({ "type": "result", "ok": true, "data": v }).to_string(),
+                Err(e) => json!({ "type": "error", "message": e.to_string() }).to_string(),
+            }
+        }
+
+        "workflow_stats" => {
+            match state.workflow.execute("workflow.stats", &json!({})).await {
+                Ok(v) => json!({ "type": "result", "ok": true, "data": v }).to_string(),
+                Err(e) => json!({ "type": "error", "message": e.to_string() }).to_string(),
+            }
+        }
+
+        "marketplace_list" => {
+            match state.marketplace.execute("marketplace.list", &json!({})).await {
+                Ok(v) => json!({ "type": "result", "ok": true, "data": v }).to_string(),
+                Err(e) => json!({ "type": "error", "message": e.to_string() }).to_string(),
+            }
+        }
+
+        _ => json!({ "type": "error", "message": format!("unknown message type: {}", msg_type) }).to_string(),
     }
 }
 

@@ -16,7 +16,7 @@ use crate::routes::{
     marketplace_list_installed, marketplace_process_auto_updates, marketplace_publish,
     marketplace_rollback_package, marketplace_search, marketplace_uninstall,
     marketplace_update_package, openapi, workflow_get, workflow_list, workflow_list_executions,
-    workflow_register, workflow_stats, workflow_trigger, GatewayState,
+    workflow_register, workflow_stats, workflow_trigger, ws_handler, GatewayState,
 };
 use axum::{
     middleware::from_fn_with_state,
@@ -74,12 +74,13 @@ impl GatewayServer {
         let state = self.state.clone();
         let auth_middleware = AuthMiddleware::new(self.state.auth.service().clone());
 
-        // Public routes — no token required.
+        // Public routes — no token required (WebSocket does its own auth via ?token=).
         let public_routes = Router::new()
             .route("/api/health", get(health))
             .route("/api/openapi.json", get(openapi))
             .route("/api/auth/login", post(auth_login))
-            .route("/api/auth/refresh", post(auth_refresh));
+            .route("/api/auth/refresh", post(auth_refresh))
+            .route("/api/ws", get(ws_handler));
 
         // Protected routes — Bearer token required.
         let protected_routes = Router::new()
