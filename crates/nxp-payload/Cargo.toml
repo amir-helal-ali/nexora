@@ -1,0 +1,19 @@
+[package]
+name = "nxp-payload"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "NXP payload serialization (MessagePack / CBOR)"
+
+[dependencies]
+nxp-core = { path = "../nxp-core" }
+serde.workspace = true
+serde_bytes.workspace = true
+rmp-serde.workspace = true
+cbor.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+bytes.workspace = true
+
+[dev-dependencies]
+serde_json = "1.0"

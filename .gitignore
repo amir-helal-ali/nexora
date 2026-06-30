@@ -1,0 +1,35 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Node / SvelteKit
+/frontend/node_modules/
+/frontend/.svelte-kit/
+/frontend/build/
+/frontend/.env
+/frontend/.env.*
+!/frontend/.env.example
+
+# SQLite
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local

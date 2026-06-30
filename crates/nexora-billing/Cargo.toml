@@ -1,0 +1,23 @@
+[package]
+name = "nexora-billing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Nexora Billing Service — invoices, payments, subscriptions"
+
+[dependencies]
+nxp-core = { path = "../nxp-core" }
+nexora-core = { path = "../nexora-core" }
+nexora-marketplace = { path = "../nexora-marketplace" }
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json = "1.0"
+rmp-serde.workspace = true
+parking_lot.workspace = true
+async-trait.workspace = true
+uuid.workspace = true
+time.workspace = true
+hex.workspace = true

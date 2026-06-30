@@ -1,0 +1,30 @@
+[package]
+name = "nexora-auth"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Nexora Auth/Identity Service — user management, sessions, tokens"
+
+[dependencies]
+nxp-core = { path = "../nxp-core" }
+nxp-security = { path = "../nxp-security" }
+nxp-payload = { path = "../nxp-payload" }
+nexora-core = { path = "../nexora-core" }
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_bytes.workspace = true
+serde_json = "1.0"
+rmp-serde.workspace = true
+parking_lot.workspace = true
+async-trait.workspace = true
+argon2.workspace = true
+uuid.workspace = true
+rand.workspace = true
+zeroize.workspace = true
+hex.workspace = true
+ed25519-dalek.workspace = true
+base64 = "0.22"
+time.workspace = true

@@ -1,0 +1,25 @@
+[package]
+name = "nxp-transport"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "NXP transport layer over QUIC (quinn)"
+
+[dependencies]
+nxp-core = { path = "../nxp-core" }
+nxp-session = { path = "../nxp-session" }
+nxp-security = { path = "../nxp-security" }
+nxp-payload = { path = "../nxp-payload" }
+tokio.workspace = true
+quinn.workspace = true
+rustls.workspace = true
+rcgen.workspace = true
+rustls-pemfile.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+bytes.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+rmp-serde.workspace = true
+rand.workspace = true

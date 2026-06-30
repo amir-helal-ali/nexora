@@ -1,0 +1,63 @@
+[package]
+name = "nxp-demo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "NXP + Nexora Core demos: server, client, and full core demo"
+publish = false
+
+[[bin]]
+name = "nxp-server"
+path = "src/server.rs"
+
+[[bin]]
+name = "nxp-client"
+path = "src/client.rs"
+
+[[bin]]
+name = "nexora-core-demo"
+path = "src/core_demo.rs"
+
+[[bin]]
+name = "core-smoke-test"
+path = "src/core_smoke_test.rs"
+
+[[bin]]
+name = "auth-demo"
+path = "src/auth_demo.rs"
+
+[[bin]]
+name = "auth-smoke-test"
+path = "src/auth_smoke_test.rs"
+
+[[bin]]
+name = "gateway-demo"
+path = "src/gateway_demo.rs"
+
+[[bin]]
+name = "storage-demo"
+path = "src/storage_demo.rs"
+
+[dependencies]
+nxp-core = { path = "../crates/nxp-core" }
+nxp-transport = { path = "../crates/nxp-transport" }
+nxp-session = { path = "../crates/nxp-session" }
+nxp-security = { path = "../crates/nxp-security" }
+nxp-payload = { path = "../crates/nxp-payload" }
+nexora-core = { path = "../crates/nexora-core" }
+nexora-auth = { path = "../crates/nexora-auth" }
+nexora-gateway = { path = "../crates/nexora-gateway" }
+nexora-marketplace = { path = "../crates/nexora-marketplace" }
+nexora-billing = { path = "../crates/nexora-billing" }
+nexora-storage = { path = "../crates/nexora-storage" }
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true
+bytes.workspace = true
+hex.workspace = true
+serde.workspace = true
+serde_json = "1.0"
+rmp-serde.workspace = true
+ed25519-dalek.workspace = true
+rand.workspace = true

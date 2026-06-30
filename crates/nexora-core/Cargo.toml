@@ -1,0 +1,30 @@
+[package]
+name = "nexora-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Nexora Core — cloud operating system kernel: modules, plugins, services, events, permissions"
+
+[dependencies]
+nxp-core = { path = "../nxp-core" }
+nxp-transport = { path = "../nxp-transport" }
+nxp-session = { path = "../nxp-session" }
+nxp-security = { path = "../nxp-security" }
+nxp-payload = { path = "../nxp-payload" }
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_bytes.workspace = true
+serde_json = "1.0"
+rmp-serde.workspace = true
+parking_lot.workspace = true
+once_cell.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+time.workspace = true
+rand.workspace = true
+zeroize.workspace = true
+hex.workspace = true
+sha2.workspace = true
