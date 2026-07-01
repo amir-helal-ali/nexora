@@ -29,6 +29,7 @@
     { id: 'nav-health', label: 'System Health', hint: '/health', icon: '♥', section: 'Navigate', action: () => goto('/health') },
     { id: 'nav-settings', label: 'Settings', hint: '/settings', icon: '⚙', section: 'Navigate', action: () => goto('/settings') },
     { id: 'nav-cluster', label: 'Cluster', hint: '/cluster', icon: '🕸', section: 'Navigate', action: () => goto('/cluster') },
+    { id: 'nav-workflows', label: 'Workflows', hint: '/workflows', icon: '⚙', section: 'Navigate', action: () => goto('/workflows') },
   ];
 
   const actionCommands: Command[] = [
