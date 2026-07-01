@@ -27,6 +27,7 @@
     { id: 'nav-marketplace', label: 'Marketplace', hint: '/marketplace', icon: '◇', section: 'Navigate', action: () => goto('/marketplace') },
     { id: 'nav-billing', label: 'Billing', hint: '/billing', icon: '$', section: 'Navigate', action: () => goto('/billing') },
     { id: 'nav-health', label: 'System Health', hint: '/health', icon: '♥', section: 'Navigate', action: () => goto('/health') },
+    { id: 'nav-settings', label: 'Settings', hint: '/settings', icon: '⚙', section: 'Navigate', action: () => goto('/settings') },
   ];
 
   const actionCommands: Command[] = [

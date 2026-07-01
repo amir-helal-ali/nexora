@@ -14,6 +14,7 @@
     { href: '/billing', label: 'Billing' },
     { href: '/terminal', label: 'Terminal' },
     { href: '/health', label: 'Health' },
+    { href: '/settings', label: 'Settings' },
   ];
 </script>
 

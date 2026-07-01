@@ -20,7 +20,7 @@ use crate::routes::{
     marketplace_list_installed, marketplace_process_auto_updates, marketplace_publish,
     marketplace_rollback_package, marketplace_search, marketplace_uninstall,
     marketplace_update_package, openapi, workflow_get, workflow_list, workflow_list_executions,
-    workflow_register, workflow_stats, workflow_trigger, ws_handler, dashboard_stats, GatewayState,
+    workflow_register, workflow_stats, workflow_trigger, ws_handler, dashboard_stats, user_change_password, user_create, user_delete, user_list, user_profile, user_sessions, GatewayState,
 };
 use axum::{
     middleware::from_fn_with_state,
@@ -133,6 +133,12 @@ impl GatewayServer {
             .route("/api/cluster/stats", get(cluster_stats))
             .route("/api/cluster/pick", get(cluster_pick))
             .route("/api/dashboard/stats", get(dashboard_stats))
+            // User management routes
+            .route("/api/users", get(user_list).post(user_create))
+            .route("/api/users/me", get(user_profile))
+            .route("/api/users/sessions", get(user_sessions))
+            .route("/api/users/change_password", post(user_change_password))
+            .route("/api/users/:id", axum::routing::delete(user_delete))
             // Notification routes
             .route("/api/notifications", get(notification_list).post(notification_create))
             .route("/api/notifications/unread_count", get(notification_unread_count))

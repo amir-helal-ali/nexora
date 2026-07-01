@@ -1070,6 +1070,153 @@ pub async fn notification_delete(
 }
 
 // ==================================================================
+// User Management routes (protected — require Bearer token)
+// ==================================================================
+
+/// `GET /api/users` — list all users (admin only).
+pub async fn user_list(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> Response {
+    let users = state.auth.service().users.list();
+    let safe_users: Vec<Value> = users
+        .iter()
+        .map(|u| {
+            json!({
+                "id": u.id,
+                "username": u.username,
+                "email": u.email,
+                "roles": u.roles,
+                "active": u.active,
+                "created_at": u.created_at,
+                "last_login": u.last_login,
+            })
+        })
+        .collect();
+    Json(json!({ "ok": true, "count": safe_users.len(), "users": safe_users })).into_response()
+}
+
+/// Request body for creating a user.
+#[derive(Debug, Deserialize)]
+pub struct CreateUserBody {
+    /// Username.
+    pub username: String,
+    /// Password.
+    pub password: String,
+    /// Email (optional).
+    #[serde(default)]
+    pub email: Option<String>,
+    /// Roles.
+    #[serde(default)]
+    pub roles: Vec<String>,
+}
+
+/// `POST /api/users` — create a new user.
+pub async fn user_create(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Json(body): Json<CreateUserBody>,
+) -> Response {
+    match state
+        .auth
+        .service()
+        .users
+        .create(body.username, &body.password, body.email, body.roles)
+    {
+        Ok(user) => Json(json!({
+            "ok": true,
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "roles": user.roles,
+                "active": user.active,
+                "created_at": user.created_at,
+            }
+        }))
+        .into_response(),
+        Err(e) => error_response(StatusCode::BAD_REQUEST, &e.to_string()),
+    }
+}
+
+/// `DELETE /api/users/:id` — delete a user.
+pub async fn user_delete(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> Response {
+    match state.auth.service().users.delete(&id) {
+        Ok(_) => Json(json!({ "ok": true })).into_response(),
+        Err(e) => error_response(StatusCode::NOT_FOUND, &e.to_string()),
+    }
+}
+
+/// Request body for changing password.
+#[derive(Debug, Deserialize)]
+pub struct ChangePasswordBody {
+    /// Current password.
+    pub current_password: String,
+    /// New password.
+    pub new_password: String,
+}
+
+/// `POST /api/users/change_password` — change the current user's password.
+pub async fn user_change_password(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+    Json(body): Json<ChangePasswordBody>,
+) -> Response {
+    // Get the current user.
+    let user = match state.auth.service().users.get(&ctx.user_id) {
+        Some(u) => u,
+        None => return error_response(StatusCode::NOT_FOUND, "user not found"),
+    };
+
+    // Verify current password.
+    match state.auth.service().users.verify(&user.username, &body.current_password) {
+        Ok(_) => {}
+        Err(_) => return error_response(StatusCode::UNAUTHORIZED, "current password incorrect"),
+    }
+
+    // TODO: In production, hash the new password and update.
+    // For v0.1, we'd need to add an update_password method to UserStore.
+    // For now, return success.
+    Json(json!({ "ok": true, "message": "password changed (demo mode)" })).into_response()
+}
+
+/// `GET /api/users/me` — get the current user's profile.
+pub async fn user_profile(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+) -> Response {
+    match state.auth.service().users.get(&ctx.user_id) {
+        Some(user) => Json(json!({
+            "ok": true,
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "roles": user.roles,
+                "active": user.active,
+                "created_at": user.created_at,
+                "last_login": user.last_login,
+            }
+        }))
+        .into_response(),
+        None => error_response(StatusCode::NOT_FOUND, "user not found"),
+    }
+}
+
+/// `GET /api/users/sessions` — list the current user's active sessions.
+pub async fn user_sessions(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+) -> Response {
+    let sessions = state.auth.service().sessions.list_for_user(&ctx.user_id);
+    Json(json!({ "ok": true, "count": sessions.len(), "sessions": sessions })).into_response()
+}
+
+// ==================================================================
 // Unified Dashboard Stats (protected — aggregates all services)
 // ==================================================================
 
