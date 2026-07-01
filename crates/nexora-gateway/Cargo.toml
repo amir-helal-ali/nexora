@@ -16,6 +16,7 @@ nexora-billing = { path = "../nexora-billing" }
 nexora-workflow = { path = "../nexora-workflow" }
 nexora-cluster = { path = "../nexora-cluster" }
 nexora-notifications = { path = "../nexora-notifications" }
+nexora-tenancy = { path = "../nexora-tenancy" }
 tokio.workspace = true
 tokio-stream = { version = "0.1", features = ["sync"] }
 futures-util = "0.3"

@@ -33,6 +33,7 @@
     { id: 'nav-api', label: 'API Explorer', hint: '/api-explorer', icon: '🔌', section: 'Navigate', action: () => goto('/api-explorer') },
     { id: 'nav-metrics', label: 'Metrics & Analytics', hint: '/metrics', icon: '📊', section: 'Navigate', action: () => goto('/metrics') },
     { id: 'nav-audit', label: 'Audit Log', hint: '/audit', icon: '📋', section: 'Navigate', action: () => goto('/audit') },
+    { id: 'nav-orgs', label: 'Organizations', hint: '/organizations', icon: '🏢', section: 'Navigate', action: () => goto('/organizations') },
   ];
 
   const actionCommands: Command[] = [

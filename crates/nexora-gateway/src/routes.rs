@@ -23,6 +23,7 @@ use nexora_auth::AuthHandler;
 use nexora_billing::BillingHandler;
 use nexora_cluster::ClusterHandler;
 use nexora_notifications::NotificationHandler;
+use nexora_tenancy::TenancyHandler;
 use nexora_core::CoreHandler;
 use nexora_marketplace::MarketplaceHandler;
 use nexora_workflow::WorkflowHandler;
@@ -51,6 +52,7 @@ pub struct GatewayState {
     /// Cluster handler (in-process).
     pub cluster: Arc<ClusterHandler>,
     pub notifications: Arc<NotificationHandler>,
+    pub tenancy: Arc<TenancyHandler>,
     /// Whether the gateway is ready to serve traffic.
     pub ready: bool,
 }
@@ -1309,6 +1311,112 @@ async fn get_notification_stats(state: &GatewayState) -> Value {
     }
 }
 
+
+// ==================================================================
+// Tenancy routes (protected — require Bearer token)
+// ==================================================================
+
+/// `GET /api/tenancy/orgs` — list all organizations.
+pub async fn tenancy_list_orgs(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> Response {
+    match state.tenancy.execute("tenancy.list_orgs", &json!({})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// `POST /api/tenancy/orgs` — create a new organization.
+pub async fn tenancy_create_org(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+    Json(body): Json<Value>,
+) -> Response {
+    let mut args = body;
+    if let Some(obj) = args.as_object_mut() {
+        obj.insert("owner_id".to_string(), serde_json::Value::String(ctx.user_id.clone()));
+    }
+    match state.tenancy.execute("tenancy.create_org", &args).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::BAD_REQUEST, &e.to_string()),
+    }
+}
+
+/// `GET /api/tenancy/orgs/:id` — get an organization.
+pub async fn tenancy_get_org(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> Response {
+    match state.tenancy.execute("tenancy.get_org", &json!({"id": id})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::NOT_FOUND, &e.to_string()),
+    }
+}
+
+/// `GET /api/tenancy/my_orgs` — list the current user's organizations.
+pub async fn tenancy_my_orgs(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+) -> Response {
+    match state.tenancy.execute("tenancy.list_my_orgs", &json!({"user_id": ctx.user_id})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// `GET /api/tenancy/orgs/:id/members` — list members of an org.
+pub async fn tenancy_list_members(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> Response {
+    match state.tenancy.execute("tenancy.list_members", &json!({"org_id": id})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::NOT_FOUND, &e.to_string()),
+    }
+}
+
+/// `POST /api/tenancy/orgs/:id/members` — add a member.
+pub async fn tenancy_add_member(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+    Json(body): Json<Value>,
+) -> Response {
+    let mut args = json!({"org_id": id});
+    if let Some(user_id) = body.get("user_id") { args["user_id"] = user_id.clone(); }
+    if let Some(role) = body.get("role") { args["role"] = role.clone(); }
+    match state.tenancy.execute("tenancy.add_member", &args).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::BAD_REQUEST, &e.to_string()),
+    }
+}
+
+/// `GET /api/tenancy/orgs/:id/teams` — list teams in an org.
+pub async fn tenancy_list_teams(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> Response {
+    match state.tenancy.execute("tenancy.list_teams", &json!({"org_id": id})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::NOT_FOUND, &e.to_string()),
+    }
+}
+
+/// `GET /api/tenancy/stats` — tenancy stats.
+pub async fn tenancy_stats(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> Response {
+    match state.tenancy.execute("tenancy.stats", &json!({})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
 fn error_response(status: StatusCode, message: &str) -> Response {
     (
         status,
@@ -1344,6 +1452,7 @@ mod tests {
         let workflow = std::sync::Arc::new(nexora_workflow::WorkflowService::new(core.clone()));
         let cluster = std::sync::Arc::new(nexora_cluster::ClusterService::new(core.clone()));
         let notifications = std::sync::Arc::new(nexora_notifications::NotificationService::new(core.clone()));
+        let tenancy = std::sync::Arc::new(nexora_tenancy::TenancyService::new(core.clone()));
         GatewayState {
             auth: std::sync::Arc::new(AuthHandler::new(auth.clone())),
             core: std::sync::Arc::new(CoreHandler::new(core.clone())),
@@ -1352,6 +1461,7 @@ mod tests {
             workflow: std::sync::Arc::new(workflow.handler()),
             cluster: std::sync::Arc::new(cluster.handler()),
             notifications: std::sync::Arc::new(notifications.handler()),
+            tenancy: std::sync::Arc::new(tenancy.handler()),
             ready: true,
         }
     }

@@ -90,6 +90,7 @@ async fn main() -> anyhow::Result<()> {
     let workflow = Arc::new(nexora_workflow::WorkflowService::new(core.clone()));
     let cluster = Arc::new(nexora_cluster::ClusterService::new(core.clone()));
     let notifications = Arc::new(nexora_notifications::NotificationService::new(core.clone()));
+    let tenancy = Arc::new(nexora_tenancy::TenancyService::new(core.clone()));
     {
         use nexora_marketplace::package::{PackageBilling, PackageManifest, PackageType, ResourceLimits, Visibility};
         use nexora_marketplace::version::{Version, VersionRange};
@@ -131,6 +132,6 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("           -H 'Content-Type: application/json' \\");
     tracing::info!("           -d '{{\"username\":\"admin\",\"password\":\"admin123\"}}'");
 
-    let server = GatewayServer::new(core, auth, marketplace, billing, workflow, cluster, notifications);
+    let server = GatewayServer::new(core, auth, marketplace, billing, workflow, cluster, notifications, tenancy);
     server.serve(addr).await
 }

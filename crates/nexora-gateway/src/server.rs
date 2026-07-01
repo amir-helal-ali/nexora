@@ -20,7 +20,7 @@ use crate::routes::{
     marketplace_list_installed, marketplace_process_auto_updates, marketplace_publish,
     marketplace_rollback_package, marketplace_search, marketplace_uninstall,
     marketplace_update_package, openapi, workflow_get, workflow_list, workflow_list_executions,
-    workflow_register, workflow_stats, workflow_trigger, ws_handler, dashboard_stats, user_change_password, user_create, user_delete, user_list, user_profile, user_sessions, GatewayState,
+    workflow_register, workflow_stats, workflow_trigger, ws_handler, dashboard_stats, tenancy_add_member, tenancy_create_org, tenancy_get_org, tenancy_list_members, tenancy_list_orgs, tenancy_list_teams, tenancy_my_orgs, tenancy_stats, user_change_password, user_create, user_delete, user_list, user_profile, user_sessions, GatewayState,
 };
 use axum::{
     middleware::from_fn_with_state,
@@ -56,7 +56,8 @@ impl GatewayServer {
         billing: Arc<nexora_billing::BillingService>,
         workflow: Arc<nexora_workflow::WorkflowService>,
         cluster: Arc<nexora_cluster::ClusterService>,
-        notifications: Arc<nexora_notifications::NotificationService>
+        notifications: Arc<nexora_notifications::NotificationService>,
+        tenancy: Arc<nexora_tenancy::TenancyService>,
     ) -> Self {
         let auth_handler = Arc::new(nexora_auth::AuthHandler::new(auth.clone()));
         let core_handler = Arc::new(nexora_core::CoreHandler::new(core.clone()));
@@ -65,6 +66,7 @@ impl GatewayServer {
         let workflow_handler = Arc::new(workflow.handler());
         let cluster_handler = Arc::new(cluster.handler());
         let notification_handler = Arc::new(notifications.handler());
+        let tenancy_handler = Arc::new(tenancy.handler());
         Self {
             state: GatewayState {
                 auth: auth_handler,
@@ -74,6 +76,7 @@ impl GatewayServer {
                 workflow: workflow_handler,
                 cluster: cluster_handler,
                 notifications: notification_handler,
+                tenancy: tenancy_handler,
                 ready: true,
             },
         }
@@ -133,6 +136,13 @@ impl GatewayServer {
             .route("/api/cluster/stats", get(cluster_stats))
             .route("/api/cluster/pick", get(cluster_pick))
             .route("/api/dashboard/stats", get(dashboard_stats))
+            // Tenancy routes
+            .route("/api/tenancy/orgs", get(tenancy_list_orgs).post(tenancy_create_org))
+            .route("/api/tenancy/my_orgs", get(tenancy_my_orgs))
+            .route("/api/tenancy/orgs/:id", get(tenancy_get_org))
+            .route("/api/tenancy/orgs/:id/members", get(tenancy_list_members).post(tenancy_add_member))
+            .route("/api/tenancy/orgs/:id/teams", get(tenancy_list_teams))
+            .route("/api/tenancy/stats", get(tenancy_stats))
             // User management routes
             .route("/api/users", get(user_list).post(user_create))
             .route("/api/users/me", get(user_profile))
@@ -222,7 +232,8 @@ mod tests {
         let workflow = Arc::new(nexora_workflow::WorkflowService::new(core.clone()));
         let cluster = Arc::new(nexora_cluster::ClusterService::new(core.clone()));
         let notifications = Arc::new(nexora_notifications::NotificationService::new(core.clone()));
-        GatewayServer::new(core, auth, marketplace, billing, workflow, cluster, notifications)
+        let tenancy = Arc::new(nexora_tenancy::TenancyService::new(core.clone()));
+        GatewayServer::new(core, auth, marketplace, billing, workflow, cluster, notifications, tenancy)
     }
 
     #[tokio::test]
