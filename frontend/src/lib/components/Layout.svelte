@@ -12,6 +12,7 @@
     { href: '/modules', label: 'Modules' },
     { href: '/marketplace', label: 'Marketplace' },
     { href: '/billing', label: 'Billing' },
+    { href: '/cluster', label: 'Cluster' },
     { href: '/terminal', label: 'Terminal' },
     { href: '/health', label: 'Health' },
     { href: '/settings', label: 'Settings' },

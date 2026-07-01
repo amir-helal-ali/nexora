@@ -28,6 +28,7 @@
     { id: 'nav-billing', label: 'Billing', hint: '/billing', icon: '$', section: 'Navigate', action: () => goto('/billing') },
     { id: 'nav-health', label: 'System Health', hint: '/health', icon: '♥', section: 'Navigate', action: () => goto('/health') },
     { id: 'nav-settings', label: 'Settings', hint: '/settings', icon: '⚙', section: 'Navigate', action: () => goto('/settings') },
+    { id: 'nav-cluster', label: 'Cluster', hint: '/cluster', icon: '🕸', section: 'Navigate', action: () => goto('/cluster') },
   ];
 
   const actionCommands: Command[] = [
