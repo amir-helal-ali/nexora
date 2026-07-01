@@ -10,7 +10,8 @@ use crate::routes::{
     auth_login, auth_logout, auth_refresh, billing_cancel_subscription, billing_create_invoice,
     billing_create_payment, billing_create_subscription, billing_get_invoice,
     billing_list_invoices, billing_list_payments, billing_list_subscriptions,
-    billing_succeed_payment, billing_stats, core_event_stream, core_get_module, core_health,
+    billing_succeed_payment, billing_stats, cluster_heartbeat, cluster_list, cluster_pick,
+    cluster_register, cluster_stats, core_event_stream, core_get_module, core_health,
     core_list_modules, core_list_sessions, core_ping, core_publish_event, core_replay_events,
     health, marketplace_check_updates, marketplace_get, marketplace_install, marketplace_list,
     marketplace_list_installed, marketplace_process_auto_updates, marketplace_publish,
@@ -51,12 +52,14 @@ impl GatewayServer {
         marketplace: Arc<nexora_marketplace::MarketplaceService>,
         billing: Arc<nexora_billing::BillingService>,
         workflow: Arc<nexora_workflow::WorkflowService>,
+        cluster: Arc<nexora_cluster::ClusterService>,
     ) -> Self {
         let auth_handler = Arc::new(nexora_auth::AuthHandler::new(auth.clone()));
         let core_handler = Arc::new(nexora_core::CoreHandler::new(core.clone()));
         let marketplace_handler = Arc::new(marketplace.handler());
         let billing_handler = Arc::new(billing.handler());
         let workflow_handler = Arc::new(workflow.handler());
+        let cluster_handler = Arc::new(cluster.handler());
         Self {
             state: GatewayState {
                 auth: auth_handler,
@@ -64,6 +67,7 @@ impl GatewayServer {
                 marketplace: marketplace_handler,
                 billing: billing_handler,
                 workflow: workflow_handler,
+                cluster: cluster_handler,
                 ready: true,
             },
         }
@@ -117,6 +121,11 @@ impl GatewayServer {
             .route("/api/workflows/:id/trigger", post(workflow_trigger))
             .route("/api/workflows/executions", get(workflow_list_executions))
             .route("/api/workflows/stats", get(workflow_stats))
+            // Cluster routes
+            .route("/api/cluster/nodes", get(cluster_list).post(cluster_register))
+            .route("/api/cluster/nodes/:id/heartbeat", post(cluster_heartbeat))
+            .route("/api/cluster/stats", get(cluster_stats))
+            .route("/api/cluster/pick", get(cluster_pick))
             .layer(from_fn_with_state(auth_middleware, require_token));
 
         Router::new()
@@ -188,7 +197,8 @@ mod tests {
         let marketplace = Arc::new(nexora_marketplace::MarketplaceService::new(core.clone()));
         let billing = Arc::new(nexora_billing::BillingService::new(core.clone()));
         let workflow = Arc::new(nexora_workflow::WorkflowService::new(core.clone()));
-        GatewayServer::new(core, auth, marketplace, billing, workflow)
+        let cluster = Arc::new(nexora_cluster::ClusterService::new(core.clone()));
+        GatewayServer::new(core, auth, marketplace, billing, workflow, cluster)
     }
 
     #[tokio::test]

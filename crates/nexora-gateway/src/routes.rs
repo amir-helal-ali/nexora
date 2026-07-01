@@ -21,6 +21,7 @@ use axum::{
 };
 use nexora_auth::AuthHandler;
 use nexora_billing::BillingHandler;
+use nexora_cluster::ClusterHandler;
 use nexora_core::CoreHandler;
 use nexora_marketplace::MarketplaceHandler;
 use nexora_workflow::WorkflowHandler;
@@ -46,6 +47,8 @@ pub struct GatewayState {
     pub billing: Arc<BillingHandler>,
     /// Workflow handler (in-process).
     pub workflow: Arc<WorkflowHandler>,
+    /// Cluster handler (in-process).
+    pub cluster: Arc<ClusterHandler>,
     /// Whether the gateway is ready to serve traffic.
     pub ready: bool,
 }
@@ -929,6 +932,67 @@ async fn handle_ws_message(text: &str, state: &GatewayState) -> String {
     }
 }
 
+// ==================================================================
+// Cluster routes (protected — require Bearer token)
+// ==================================================================
+
+/// `GET /api/cluster/nodes` — list all cluster nodes.
+pub async fn cluster_list(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> Response {
+    match state.cluster.execute("cluster.list", &json!({})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// `POST /api/cluster/nodes` — register a new node.
+pub async fn cluster_register(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Json(body): Json<Value>,
+) -> Response {
+    match state.cluster.execute("cluster.register", &body).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::BAD_REQUEST, &e.to_string()),
+    }
+}
+
+/// `POST /api/cluster/nodes/:id/heartbeat` — record a heartbeat.
+pub async fn cluster_heartbeat(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> Response {
+    match state.cluster.execute("cluster.heartbeat", &json!({ "id": id })).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::NOT_FOUND, &e.to_string()),
+    }
+}
+
+/// `GET /api/cluster/stats` — cluster-wide statistics.
+pub async fn cluster_stats(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> Response {
+    match state.cluster.execute("cluster.stats", &json!({})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// `GET /api/cluster/pick` — pick the best node for load balancing.
+pub async fn cluster_pick(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> Response {
+    match state.cluster.execute("cluster.pick_node", &json!({})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::SERVICE_UNAVAILABLE, &e.to_string()),
+    }
+}
+
 fn error_response(status: StatusCode, message: &str) -> Response {
     (
         status,
@@ -962,12 +1026,14 @@ mod tests {
         let marketplace = std::sync::Arc::new(nexora_marketplace::MarketplaceService::new(core.clone()));
         let billing = std::sync::Arc::new(nexora_billing::BillingService::new(core.clone()));
         let workflow = std::sync::Arc::new(nexora_workflow::WorkflowService::new(core.clone()));
+        let cluster = std::sync::Arc::new(nexora_cluster::ClusterService::new(core.clone()));
         GatewayState {
             auth: std::sync::Arc::new(AuthHandler::new(auth.clone())),
             core: std::sync::Arc::new(CoreHandler::new(core.clone())),
             marketplace: std::sync::Arc::new(marketplace.handler()),
             billing: std::sync::Arc::new(billing.handler()),
             workflow: std::sync::Arc::new(workflow.handler()),
+            cluster: std::sync::Arc::new(cluster.handler()),
             ready: true,
         }
     }
