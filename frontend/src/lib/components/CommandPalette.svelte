@@ -30,6 +30,7 @@
     { id: 'nav-settings', label: 'Settings', hint: '/settings', icon: '⚙', section: 'Navigate', action: () => goto('/settings') },
     { id: 'nav-cluster', label: 'Cluster', hint: '/cluster', icon: '🕸', section: 'Navigate', action: () => goto('/cluster') },
     { id: 'nav-workflows', label: 'Workflows', hint: '/workflows', icon: '⚙', section: 'Navigate', action: () => goto('/workflows') },
+    { id: 'nav-api', label: 'API Explorer', hint: '/api-explorer', icon: '🔌', section: 'Navigate', action: () => goto('/api-explorer') },
   ];
 
   const actionCommands: Command[] = [

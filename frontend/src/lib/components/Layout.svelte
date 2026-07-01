@@ -15,6 +15,7 @@
     { href: '/workflows', label: 'Workflows' },
     { href: '/cluster', label: 'Cluster' },
     { href: '/terminal', label: 'Terminal' },
+    { href: '/api-explorer', label: 'API' },
     { href: '/health', label: 'Health' },
     { href: '/settings', label: 'Settings' },
   ];
