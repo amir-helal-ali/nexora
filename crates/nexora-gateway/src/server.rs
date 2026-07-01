@@ -6,6 +6,7 @@
 //! remote Core/Auth service).
 
 use crate::middleware::{require_token, AuthMiddleware};
+use crate::rate_limit::{RateLimitConfig, RateLimitState};
 use crate::routes::{
     auth_login, auth_logout, auth_refresh, billing_cancel_subscription, billing_create_invoice,
     billing_create_payment, billing_create_subscription, billing_get_invoice,
@@ -139,9 +140,13 @@ impl GatewayServer {
             .route("/api/notifications/:id", axum::routing::delete(notification_delete))
             .layer(from_fn_with_state(auth_middleware, require_token));
 
+        // Rate limiting — applies to ALL routes (public + protected).
+        let rate_limit_state = RateLimitState::new(RateLimitConfig::default());
+
         Router::new()
             .merge(public_routes)
             .merge(protected_routes)
+            .layer(from_fn_with_state(rate_limit_state, crate::rate_limit::rate_limit_middleware))
             .layer(CorsLayer::permissive())
             .layer(TraceLayer::new_for_http())
             .layer(RequestBodyLimitLayer::new(16 * 1024 * 1024)) // 16 MiB max body

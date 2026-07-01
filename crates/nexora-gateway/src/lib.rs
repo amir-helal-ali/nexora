@@ -45,8 +45,10 @@
 #![warn(missing_docs, rust_2018_idioms)]
 
 pub mod middleware;
+pub mod rate_limit;
 pub mod routes;
 pub mod server;
 pub mod spec;
 
+pub use rate_limit::{RateLimitConfig, RateLimitState, RateLimiter};
 pub use server::GatewayServer;
