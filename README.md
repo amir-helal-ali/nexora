@@ -40,15 +40,38 @@ to a browser UI.
 
 ## Quick Start
 
-### Prerequisites
+### Option A: Docker (Recommended)
 
-- Rust 1.75+ (tested with 1.96)
-- Linux / macOS / Windows
-
-### Build
+Run the entire platform with a single command:
 
 ```bash
+docker-compose up
+```
+
+This starts:
+- **Backend** (port 8080): Rust gateway with all services
+- **Frontend** (port 3000): SvelteKit app
+
+Open `http://localhost:3000` and login with `admin` / `admin123`.
+
+Data persists to a Docker volume (`nexora-data`).
+
+### Option B: Manual Build
+
+#### Prerequisites
+
+- Rust 1.75+ (tested with 1.96)
+- Node.js 20+
+- Linux / macOS / Windows
+
+#### Build
+
+```bash
+# Backend
 cargo build --release --workspace
+
+# Frontend
+cd frontend && npm install && npm run build
 ```
 
 ### Run the end-to-end demos

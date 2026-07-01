@@ -1,0 +1,41 @@
+# =============================================================================
+# Nexora Frontend — Multi-stage Dockerfile (SvelteKit)
+# =============================================================================
+# Builds the SvelteKit app and serves it via a lightweight Node.js server.
+
+# ---- Stage 1: Build ----
+FROM node:20-slim AS builder
+
+WORKDIR /build
+
+# Copy package files first (for caching).
+COPY frontend/package.json frontend/package-lock.json ./
+
+RUN npm ci
+
+# Copy source.
+COPY frontend/ .
+
+# Build the SvelteKit app.
+RUN npm run build
+
+# ---- Stage 2: Runtime ----
+FROM node:20-slim
+
+WORKDIR /app
+
+# Copy built output + package files.
+COPY --from=builder /build/package.json /build/package-lock.json ./
+COPY --from=builder /build/build ./build
+COPY --from=builder /build/.svelte-kit ./.svelte-kit
+
+# Install production dependencies only.
+RUN npm ci --omit=dev
+
+ENV PORT=3000
+ENV HOST=0.0.0.0
+
+EXPOSE 3000
+
+# Serve the built app.
+CMD ["node", "build"]

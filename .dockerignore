@@ -1,0 +1,13 @@
+# Docker ignore patterns
+target/
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/build/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.git/
+*.log
+.env
+data/
