@@ -10,6 +10,7 @@
     { href: '/', label: 'Dashboard' },
     { href: '/metrics', label: 'Metrics' },
     { href: '/events', label: 'Events' },
+    { href: '/audit', label: 'Audit' },
     { href: '/modules', label: 'Modules' },
     { href: '/marketplace', label: 'Marketplace' },
     { href: '/billing', label: 'Billing' },
