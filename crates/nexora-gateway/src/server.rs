@@ -11,7 +11,9 @@ use crate::routes::{
     billing_create_payment, billing_create_subscription, billing_get_invoice,
     billing_list_invoices, billing_list_payments, billing_list_subscriptions,
     billing_succeed_payment, billing_stats, cluster_heartbeat, cluster_list, cluster_pick,
-    cluster_register, cluster_stats, core_event_stream, core_get_module, core_health,
+    cluster_register, cluster_stats, core_event_stream,
+    notification_create, notification_delete, notification_list, notification_mark_all_read,
+    notification_mark_read, notification_unread_count, core_get_module, core_health,
     core_list_modules, core_list_sessions, core_ping, core_publish_event, core_replay_events,
     health, marketplace_check_updates, marketplace_get, marketplace_install, marketplace_list,
     marketplace_list_installed, marketplace_process_auto_updates, marketplace_publish,
@@ -53,6 +55,7 @@ impl GatewayServer {
         billing: Arc<nexora_billing::BillingService>,
         workflow: Arc<nexora_workflow::WorkflowService>,
         cluster: Arc<nexora_cluster::ClusterService>,
+        notifications: Arc<nexora_notifications::NotificationService>
     ) -> Self {
         let auth_handler = Arc::new(nexora_auth::AuthHandler::new(auth.clone()));
         let core_handler = Arc::new(nexora_core::CoreHandler::new(core.clone()));
@@ -60,6 +63,7 @@ impl GatewayServer {
         let billing_handler = Arc::new(billing.handler());
         let workflow_handler = Arc::new(workflow.handler());
         let cluster_handler = Arc::new(cluster.handler());
+        let notification_handler = Arc::new(notifications.handler());
         Self {
             state: GatewayState {
                 auth: auth_handler,
@@ -68,6 +72,7 @@ impl GatewayServer {
                 billing: billing_handler,
                 workflow: workflow_handler,
                 cluster: cluster_handler,
+                notifications: notification_handler,
                 ready: true,
             },
         }
@@ -126,6 +131,12 @@ impl GatewayServer {
             .route("/api/cluster/nodes/:id/heartbeat", post(cluster_heartbeat))
             .route("/api/cluster/stats", get(cluster_stats))
             .route("/api/cluster/pick", get(cluster_pick))
+            // Notification routes
+            .route("/api/notifications", get(notification_list).post(notification_create))
+            .route("/api/notifications/unread_count", get(notification_unread_count))
+            .route("/api/notifications/read_all", post(notification_mark_all_read))
+            .route("/api/notifications/:id/read", post(notification_mark_read))
+            .route("/api/notifications/:id", axum::routing::delete(notification_delete))
             .layer(from_fn_with_state(auth_middleware, require_token));
 
         Router::new()
@@ -198,7 +209,8 @@ mod tests {
         let billing = Arc::new(nexora_billing::BillingService::new(core.clone()));
         let workflow = Arc::new(nexora_workflow::WorkflowService::new(core.clone()));
         let cluster = Arc::new(nexora_cluster::ClusterService::new(core.clone()));
-        GatewayServer::new(core, auth, marketplace, billing, workflow, cluster)
+        let notifications = Arc::new(nexora_notifications::NotificationService::new(core.clone()));
+        GatewayServer::new(core, auth, marketplace, billing, workflow, cluster, notifications)
     }
 
     #[tokio::test]

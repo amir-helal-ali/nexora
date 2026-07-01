@@ -22,6 +22,7 @@ use axum::{
 use nexora_auth::AuthHandler;
 use nexora_billing::BillingHandler;
 use nexora_cluster::ClusterHandler;
+use nexora_notifications::NotificationHandler;
 use nexora_core::CoreHandler;
 use nexora_marketplace::MarketplaceHandler;
 use nexora_workflow::WorkflowHandler;
@@ -49,6 +50,7 @@ pub struct GatewayState {
     pub workflow: Arc<WorkflowHandler>,
     /// Cluster handler (in-process).
     pub cluster: Arc<ClusterHandler>,
+    pub notifications: Arc<NotificationHandler>,
     /// Whether the gateway is ready to serve traffic.
     pub ready: bool,
 }
@@ -993,6 +995,80 @@ pub async fn cluster_pick(
     }
 }
 
+
+// ==================================================================
+// Notification routes (protected — require Bearer token)
+// ==================================================================
+
+/// `GET /api/notifications` — list notifications for the authenticated user.
+pub async fn notification_list(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+) -> Response {
+    match state.notifications.execute("notification.list", &json!({"user_id": ctx.user_id})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// `GET /api/notifications/unread_count` — count unread notifications.
+pub async fn notification_unread_count(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+) -> Response {
+    match state.notifications.execute("notification.unread_count", &json!({"user_id": ctx.user_id})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// `POST /api/notifications` — create a notification (admin/system).
+pub async fn notification_create(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Json(body): Json<Value>,
+) -> Response {
+    match state.notifications.execute("notification.create", &body).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::BAD_REQUEST, &e.to_string()),
+    }
+}
+
+/// `POST /api/notifications/:id/read` — mark a notification as read.
+pub async fn notification_mark_read(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> Response {
+    match state.notifications.execute("notification.mark_read", &json!({"id": id})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::NOT_FOUND, &e.to_string()),
+    }
+}
+
+/// `POST /api/notifications/read_all` — mark all as read.
+pub async fn notification_mark_all_read(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+) -> Response {
+    match state.notifications.execute("notification.mark_all_read", &json!({"user_id": ctx.user_id})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// `DELETE /api/notifications/:id` — delete a notification.
+pub async fn notification_delete(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> Response {
+    match state.notifications.execute("notification.delete", &json!({"id": id})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(StatusCode::NOT_FOUND, &e.to_string()),
+    }
+}
+
 fn error_response(status: StatusCode, message: &str) -> Response {
     (
         status,
@@ -1027,6 +1103,7 @@ mod tests {
         let billing = std::sync::Arc::new(nexora_billing::BillingService::new(core.clone()));
         let workflow = std::sync::Arc::new(nexora_workflow::WorkflowService::new(core.clone()));
         let cluster = std::sync::Arc::new(nexora_cluster::ClusterService::new(core.clone()));
+        let notifications = std::sync::Arc::new(nexora_notifications::NotificationService::new(core.clone()));
         GatewayState {
             auth: std::sync::Arc::new(AuthHandler::new(auth.clone())),
             core: std::sync::Arc::new(CoreHandler::new(core.clone())),
@@ -1034,6 +1111,7 @@ mod tests {
             billing: std::sync::Arc::new(billing.handler()),
             workflow: std::sync::Arc::new(workflow.handler()),
             cluster: std::sync::Arc::new(cluster.handler()),
+            notifications: std::sync::Arc::new(notifications.handler()),
             ready: true,
         }
     }

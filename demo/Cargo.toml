@@ -51,6 +51,7 @@ nexora-marketplace = { path = "../crates/nexora-marketplace" }
 nexora-billing = { path = "../crates/nexora-billing" }
 nexora-workflow = { path = "../crates/nexora-workflow" }
 nexora-cluster = { path = "../crates/nexora-cluster" }
+nexora-notifications = { path = "../crates/nexora-notifications" }
 nexora-storage = { path = "../crates/nexora-storage" }
 tokio.workspace = true
 tracing.workspace = true
