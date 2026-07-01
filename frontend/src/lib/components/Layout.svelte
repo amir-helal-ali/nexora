@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import CommandPalette from './CommandPalette.svelte';
+  import NotificationBell from './NotificationBell.svelte';
 
   let { children } = $props();
   let paletteOpen = $state(false);
@@ -57,6 +58,8 @@
           <span class="hidden sm:inline">Search…</span>
           <kbd class="hidden sm:inline px-1 py-0.5 rounded border border-nexora-border text-[10px]">⌘K</kbd>
         </button>
+        <!-- Notification bell -->
+        <NotificationBell />
         <a href="/logout" class="btn-ghost text-xs px-2 py-1">Logout</a>
       </div>
     </div>

@@ -97,6 +97,18 @@ export interface InstallReport {
   error: string | null;
 }
 
+export interface NotificationItem {
+  id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  severity: 'info' | 'success' | 'warning' | 'error';
+  read: boolean;
+  created_at: number;
+  link: string | null;
+  icon: string | null;
+}
+
 export interface ApiError {
   ok: false;
   error: string;
@@ -316,6 +328,27 @@ export const api = {
     return {
       close: () => es.close(),
     };
+  },
+
+  // ---- Notifications ----
+  async listNotifications(): Promise<{ ok: boolean; count: number; notifications: NotificationItem[] }> {
+    return request('/api/notifications');
+  },
+
+  async unreadCount(): Promise<{ ok: boolean; count: number }> {
+    return request('/api/notifications/unread_count');
+  },
+
+  async markNotificationRead(id: string): Promise<{ ok: boolean }> {
+    return request(`/api/notifications/${encodeURIComponent(id)}/read`, { method: 'POST' });
+  },
+
+  async markAllNotificationsRead(): Promise<{ ok: boolean; marked_read: number }> {
+    return request('/api/notifications/read_all', { method: 'POST' });
+  },
+
+  async deleteNotification(id: string): Promise<{ ok: boolean }> {
+    return request(`/api/notifications/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
 
   // ---- System ----
