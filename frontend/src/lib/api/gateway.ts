@@ -109,6 +109,46 @@ export interface NotificationItem {
   icon: string | null;
 }
 
+export interface DashboardStats {
+  ok: boolean;
+  core: {
+    modules: number;
+    enabled_modules: number;
+    events_published: number;
+    principals: number;
+    health: string;
+  };
+  marketplace: {
+    total_packages: number;
+  };
+  billing: {
+    invoice_count: number;
+    payment_count: number;
+    subscription_count: number;
+    revenue_minor: number;
+    outstanding_minor: number;
+    currency: string;
+  };
+  workflow: {
+    workflow_count: number;
+    execution_count: number;
+    succeeded: number;
+    failed: number;
+    stopped: number;
+  };
+  cluster: {
+    total_nodes: number;
+    healthy_nodes: number;
+    degraded_nodes: number;
+    unhealthy_nodes: number;
+    offline_nodes: number;
+  };
+  notifications: {
+    total: number;
+  };
+  timestamp: number;
+}
+
 export interface ApiError {
   ok: false;
   error: string;
@@ -349,6 +389,11 @@ export const api = {
 
   async deleteNotification(id: string): Promise<{ ok: boolean }> {
     return request(`/api/notifications/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
+
+  // ---- Dashboard ----
+  async getDashboardStats(): Promise<DashboardStats> {
+    return request('/api/dashboard/stats');
   },
 
   // ---- System ----

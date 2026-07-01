@@ -1069,6 +1069,99 @@ pub async fn notification_delete(
     }
 }
 
+// ==================================================================
+// Unified Dashboard Stats (protected — aggregates all services)
+// ==================================================================
+
+/// `GET /api/dashboard/stats` — unified stats from all services in one call.
+///
+/// Returns a JSON object with stats from: Core (modules, events, health),
+/// Marketplace (packages, installed), Billing (revenue, invoices, subscriptions),
+/// Workflow (workflows, executions), Cluster (nodes, healthy), Notifications (total).
+pub async fn dashboard_stats(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> Response {
+    // Gather stats from all services in parallel.
+    let (core_stats, marketplace_stats, billing_stats, workflow_stats, cluster_stats, notif_stats) = tokio::join!(
+        get_core_stats(&state),
+        get_marketplace_stats(&state),
+        get_billing_stats(&state),
+        get_workflow_stats(&state),
+        get_cluster_stats(&state),
+        get_notification_stats(&state),
+    );
+
+    Json(json!({
+        "ok": true,
+        "core": core_stats,
+        "marketplace": marketplace_stats,
+        "billing": billing_stats,
+        "workflow": workflow_stats,
+        "cluster": cluster_stats,
+        "notifications": notif_stats,
+        "timestamp": std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0),
+    }))
+    .into_response()
+}
+
+async fn get_core_stats(state: &GatewayState) -> Value {
+    let modules = state.core.core().modules.list();
+    let event_count = state.core.core().events.published_count();
+    let health = state.core.core().health.status();
+    let principals = state.core.core().permissions.principal_count();
+    json!({
+        "modules": modules.len(),
+        "enabled_modules": modules.iter().filter(|m| m.state == nexora_core::ModuleState::Enabled).count(),
+        "events_published": event_count,
+        "principals": principals,
+        "health": health.to_string(),
+    })
+}
+
+async fn get_marketplace_stats(state: &GatewayState) -> Value {
+    match state.marketplace.execute("marketplace.list", &json!({})).await {
+        Ok(v) => {
+            let total = v.get("count").and_then(|c| c.as_u64()).unwrap_or(0);
+            json!({
+                "total_packages": total,
+            })
+        }
+        Err(_) => json!({ "total_packages": 0 }),
+    }
+}
+
+async fn get_billing_stats(state: &GatewayState) -> Value {
+    match state.billing.execute("billing.stats", &json!({})).await {
+        Ok(v) => v.get("stats").cloned().unwrap_or(json!({})),
+        Err(_) => json!({}),
+    }
+}
+
+async fn get_workflow_stats(state: &GatewayState) -> Value {
+    match state.workflow.execute("workflow.stats", &json!({})).await {
+        Ok(v) => v.get("stats").cloned().unwrap_or(json!({})),
+        Err(_) => json!({}),
+    }
+}
+
+async fn get_cluster_stats(state: &GatewayState) -> Value {
+    match state.cluster.execute("cluster.stats", &json!({})).await {
+        Ok(v) => v.get("stats").cloned().unwrap_or(json!({})),
+        Err(_) => json!({}),
+    }
+}
+
+async fn get_notification_stats(state: &GatewayState) -> Value {
+    match state.notifications.execute("notification.stats", &json!({})).await {
+        Ok(v) => v.get("stats").cloned().unwrap_or(json!({})),
+        Err(_) => json!({}),
+    }
+}
+
 fn error_response(status: StatusCode, message: &str) -> Response {
     (
         status,

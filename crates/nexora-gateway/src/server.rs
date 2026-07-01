@@ -20,7 +20,7 @@ use crate::routes::{
     marketplace_list_installed, marketplace_process_auto_updates, marketplace_publish,
     marketplace_rollback_package, marketplace_search, marketplace_uninstall,
     marketplace_update_package, openapi, workflow_get, workflow_list, workflow_list_executions,
-    workflow_register, workflow_stats, workflow_trigger, ws_handler, GatewayState,
+    workflow_register, workflow_stats, workflow_trigger, ws_handler, dashboard_stats, GatewayState,
 };
 use axum::{
     middleware::from_fn_with_state,
@@ -132,6 +132,7 @@ impl GatewayServer {
             .route("/api/cluster/nodes/:id/heartbeat", post(cluster_heartbeat))
             .route("/api/cluster/stats", get(cluster_stats))
             .route("/api/cluster/pick", get(cluster_pick))
+            .route("/api/dashboard/stats", get(dashboard_stats))
             // Notification routes
             .route("/api/notifications", get(notification_list).post(notification_create))
             .route("/api/notifications/unread_count", get(notification_unread_count))
