@@ -27,12 +27,12 @@ binary internal communication, low-resource deployment, and deferred AI (reserve
 | Metric | Value |
 |--------|-------|
 | Rust crates | 16 |
-| Frontend pages | 16 |
-| HTTP routes | 63 |
+| Frontend pages | 18 |
+| HTTP routes | 64 |
 | Database | PostgreSQL (primary) + SQLite (edge) |
 | SQLite tables | 13 |
-| PostgreSQL stores | 6 native |
-| Unit tests | 320+ |
+| PostgreSQL stores | 7 native |
+| Unit tests | 330+ |
 | `unsafe` blocks | 0 |
 | Docker images | 2 |
 | CI/CD jobs | 3 |
@@ -116,18 +116,18 @@ Open http://localhost:3000 → login with `admin` / `admin123`.
 |---------|-------|-------------|
 | **Core** | `nexora-core` | Kernel: 8 subsystems (modules, registry, events, permissions, plugins, config, secrets, health) |
 | **Auth** | `nexora-auth` | User management, Argon2id passwords, Ed25519-signed tokens, sessions |
-| **Gateway** | `nexora-gateway` | HTTP API (63 routes), SSE, WebSocket, rate limiting, OpenAPI |
+| **Gateway** | `nexora-gateway` | HTTP API (64 routes), SSE, WebSocket, rate limiting, OpenAPI, global search |
 | **Marketplace** | `nexora-marketplace` | 6 package types, 13-step install pipeline, Ed25519 signatures, SemVer, auto-update + rollback |
 | **Billing** | `nexora-billing` | Invoices, payments, subscriptions, revenue tracking |
 | **Workflow** | `nexora-workflow` | Event-driven automation pipelines, conditions, trigger substitution |
 | **Cluster** | `nexora-cluster` | Multi-node coordination, discovery, failover, load balancing |
-| **Notifications** | `nexora-notifications` | Per-user notifications, read/unread tracking, severity levels |
+| **Notifications** | `nexora-notifications` | Per-user notifications, read/unread tracking, severity levels, email adapter |
 | **Tenancy** | `nexora-tenancy` | Multi-tenancy: organizations, teams, memberships, role hierarchy |
-| **Storage** | `nexora-storage` | SQLite persistence for all data (users, events, packages, billing) |
+| **Storage** | `nexora-storage` | PostgreSQL (primary) + SQLite (edge) persistence, 13 tables, 7 PG stores |
 
 ---
 
-## Frontend Pages (16)
+## Frontend Pages (18)
 
 | Page | Description |
 |------|-------------|
@@ -142,7 +142,9 @@ Open http://localhost:3000 → login with `admin` / `admin123`.
 | `/cluster` | Cluster topology — node grid, register, heartbeat |
 | `/terminal` | WebSocket terminal — bidirectional real-time communication |
 | `/api-explorer` | Built-in API testing tool — 24 endpoints, request/response viewer |
+| `/search` | Global search across events, packages, users, workflows, notifications |
 | `/organizations` | Multi-tenancy — create orgs, manage members, teams |
+| `/about` | System info — platform details, tech stack, compliance |
 | `/health` | Subsystem health grid |
 | `/settings` | Profile, change password, sessions, user management |
 | `/login` | Login form |

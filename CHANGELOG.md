@@ -2,6 +2,43 @@
 
 All notable changes to Nexora are documented in this file.
 
+## [1.3.0] — 2026-07-02
+
+### Added — Email Notification Adapter
+- EmailAdapter with SMTP configuration via environment variables
+- 4 email methods: send, send_welcome, send_payment_confirmation, send_security_alert
+- Severity-prefixed subject lines ([INFO], [SUCCESS], [WARNING], [ALERT])
+- No-op fallback when SMTP not configured (logging only)
+- 7 unit tests
+
+### Added — Global Search
+- GET /api/search?q=... — unified search across 5 data types:
+  events, packages, users, workflows, notifications
+- Frontend /search page with debounced input, grouped results, color-coded types
+- EventPayload::payload_text() helper for search/display
+- 64 HTTP routes total
+
+### Added — System Info & About Page
+- Frontend /about page with platform summary, tech stack, compliance table,
+  16 Rust crates table, 9 services grid, live stats, uptime counter
+
+### Added — PgTenancyStore (7th PostgreSQL store)
+- PostgreSQL-native store for organizations, memberships, teams
+- All 7 PostgreSQL stores now complete:
+  PgUserStore, PgEventStore, PgPackageStore, PgBillingStore,
+  PgWorkflowStore, PgNotificationStore, PgTenancyStore
+
+### Statistics (v1.3.0)
+- 16 Rust crates
+- 18 frontend pages (+2: search, about)
+- 64 HTTP routes (+1: global search)
+- 330+ unit tests (+10)
+- 7 PostgreSQL-native stores (+1: PgTenancyStore)
+- 13 SQLite tables
+- 0 unsafe blocks
+- Email adapter with SMTP support
+- Global search across all platform data
+
 ## [1.2.0] — 2026-07-02
 
 ### Changed — PostgreSQL is now the default database
