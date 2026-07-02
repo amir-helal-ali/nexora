@@ -121,6 +121,32 @@ pub fn init_schema(conn: &Connection) -> Result<(), StorageError> {
             cancelled_at            INTEGER
         );
         CREATE INDEX IF NOT EXISTS idx_subscriptions_customer ON subscriptions(customer_id);
+
+        -- Workflows table
+        CREATE TABLE IF NOT EXISTS workflows (
+            id                  TEXT PRIMARY KEY,
+            name                TEXT NOT NULL,
+            description         TEXT NOT NULL DEFAULT '',
+            trigger_json        TEXT NOT NULL,
+            steps_json          TEXT NOT NULL,
+            enabled             INTEGER NOT NULL DEFAULT 1,
+            created_at          INTEGER NOT NULL,
+            execution_count     INTEGER NOT NULL DEFAULT 0
+        );
+
+        -- Workflow executions table
+        CREATE TABLE IF NOT EXISTS workflow_executions (
+            id                  TEXT PRIMARY KEY,
+            workflow_id         TEXT NOT NULL,
+            trigger_event       TEXT,
+            trigger_payload     TEXT,
+            status              TEXT NOT NULL,
+            step_results_json   TEXT NOT NULL DEFAULT '[]',
+            started_at          INTEGER NOT NULL,
+            finished_at         INTEGER,
+            error               TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_wf_exec_workflow ON workflow_executions(workflow_id);
         ",
     )?;
     Ok(())

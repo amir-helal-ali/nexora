@@ -33,6 +33,8 @@ pub mod packages;
 pub mod schema;
 #[cfg(feature = "sqlite")]
 pub mod users;
+#[cfg(feature = "sqlite")]
+pub mod workflows;
 
 #[cfg(feature = "postgres")]
 pub mod pg;
@@ -47,6 +49,8 @@ pub use packages::SqlitePackageStore;
 pub use schema::{init_schema, StorageError};
 #[cfg(feature = "sqlite")]
 pub use users::SqliteUserStore;
+#[cfg(feature = "sqlite")]
+pub use workflows::SqliteWorkflowStore;
 
 #[cfg(feature = "postgres")]
 pub use pg::{PgDatabase, PgError};
