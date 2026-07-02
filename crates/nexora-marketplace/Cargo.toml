@@ -1,0 +1,30 @@
+[package]
+name = "nexora-marketplace"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Nexora Marketplace — package ecosystem with signature verification, dependency resolution, monetization"
+
+[dependencies]
+nxp-core = { path = "../nxp-core" }
+nxp-security = { path = "../nxp-security" }
+nxp-payload = { path = "../nxp-payload" }
+nexora-core = { path = "../nexora-core" }
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_bytes.workspace = true
+serde_json = "1.0"
+rmp-serde.workspace = true
+parking_lot.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+time.workspace = true
+rand.workspace = true
+zeroize.workspace = true
+hex.workspace = true
+sha2.workspace = true
+ed25519-dalek.workspace = true
+uuid.workspace = true

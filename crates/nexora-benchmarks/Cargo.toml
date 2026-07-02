@@ -1,0 +1,36 @@
+[package]
+name = "nexora-benchmarks"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Nexora performance benchmarks — 9 suites covering NXP, crypto, core, and services"
+
+[dependencies]
+nxp-core = { path = "../nxp-core" }
+nxp-security = { path = "../nxp-security" }
+nxp-session = { path = "../nxp-session" }
+nexora-core = { path = "../nexora-core" }
+nexora-auth = { path = "../nexora-auth" }
+nexora-marketplace = { path = "../nexora-marketplace" }
+nexora-billing = { path = "../nexora-billing" }
+tokio.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json = "1.0"
+rand.workspace = true
+ed25519-dalek.workspace = true
+chacha20poly1305.workspace = true
+x25519-dalek.workspace = true
+rmp-serde.workspace = true
+time.workspace = true
+parking_lot.workspace = true
+bytes.workspace = true
+hex.workspace = true
+
+[dev-dependencies]
+criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "suites"
+harness = false
+path = "benches/suites.rs"

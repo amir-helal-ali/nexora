@@ -1,0 +1,24 @@
+[package]
+name = "nxp-session"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "NXP session management: HELLO handshake, key derivation, heartbeat"
+
+[dependencies]
+nxp-core = { path = "../nxp-core" }
+nxp-security = { path = "../nxp-security" }
+nxp-payload = { path = "../nxp-payload" }
+serde.workspace = true
+serde_bytes.workspace = true
+rmp-serde.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+time.workspace = true
+parking_lot.workspace = true
+rand.workspace = true
+zeroize.workspace = true
+async-trait.workspace = true
+hex.workspace = true
+x25519-dalek.workspace = true

@@ -1,0 +1,20 @@
+[package]
+name = "nxp-security"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "NXP security: AEAD, Ed25519, X25519, replay protection"
+
+[dependencies]
+nxp-core = { path = "../nxp-core" }
+chacha20poly1305.workspace = true
+ed25519-dalek.workspace = true
+x25519-dalek.workspace = true
+hkdf.workspace = true
+sha2.workspace = true
+rand.workspace = true
+zeroize.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde.workspace = true
+hex.workspace = true
