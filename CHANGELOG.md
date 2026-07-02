@@ -2,6 +2,99 @@
 
 All notable changes to Nexora are documented in this file.
 
+## [1.1.0] — 2026-07-02
+
+### Added — Multi-Tenancy (Part 2 Law 23)
+- nexora-tenancy crate: organizations, teams, memberships
+- 5 org tiers: Individual, Team, Organization, Enterprise, MSP
+- 5 roles: Owner, Admin, Member, Viewer, Billing (hierarchical)
+- Max members per tier enforcement
+- Team creation + member management
+- 8 HTTP routes + 20 unit tests
+- Frontend /organizations page with create + member management
+
+### Added — API Rate Limiting (Part 6 + Part 9)
+- Sliding window rate limiter (100 req/60s default)
+- Per-user + per-IP client identification
+- HTTP 429 with X-RateLimit-* headers
+- Configurable + disable-able
+- 9 unit tests
+
+### Added — Audit Log Page (Part 9)
+- Immutable event history with 4 filters (text, category, time-range, sort)
+- Category badges (clickable filters)
+- JSON export
+- Color-coded categories
+- Frontend /audit page
+
+### Added — Metrics & Analytics (Part 13)
+- 4 pure SVG chart components (Sparkline, Donut, BarChart, Gauge)
+- Event Activity sparkline (time-series)
+- Revenue Trend sparkline
+- Cluster Health donut
+- Billing Breakdown donut
+- Workflow Success Rate gauge
+- Event Distribution bar chart
+- Platform Summary stats grid
+- Auto-refresh every 15 seconds + SSE live updates
+- Frontend /metrics page
+
+### Added — API Explorer
+- 24 curated endpoints across 10 categories
+- Request builder (path params, query, JSON body)
+- Response viewer (status, time, formatted JSON)
+- Auto-auth with Bearer token
+- Frontend /api-explorer page
+
+### Added — Settings & User Management
+- 6 HTTP routes (list, create, delete users, profile, sessions, change password)
+- Profile tab with API token display
+- Sessions tab
+- Users tab with create + delete
+- Frontend /settings page
+
+### Added — Cluster Topology Page
+- Node grid with role icons + status badges
+- Register new node form
+- Send heartbeat per node
+- Stats grid + by-role/by-region breakdowns
+- Frontend /cluster page
+
+### Added — Workflow Management Page
+- Create form with step builder (4 action types)
+- Trigger button per workflow
+- Execution history with per-step results
+- Frontend /workflows page
+
+### Added — WebSocket Terminal
+- Bidirectional real-time communication
+- 6 message types (ping, publish_event, core_ping, billing_stats, workflow_stats, marketplace_list)
+- Live event push from EventBus
+- Frontend /terminal page
+
+### Added — Notification Bell
+- Live unread count + dropdown panel
+- Mark read + mark all read
+- SSE live updates
+- Severity-colored icons
+
+### Added — Unified Dashboard Stats API
+- GET /api/dashboard/stats — single endpoint aggregating all 9 services
+- Parallel aggregation via tokio::join!
+- Redesigned Dashboard with service stats grid
+
+### Added — User Management API
+- 6 routes for user CRUD + profile + sessions + password change
+
+### Statistics (v1.1.0)
+- 16 Rust crates (+1: nexora-tenancy)
+- 16 frontend pages (+6: metrics, audit, settings, organizations, workflows, cluster, terminal, api-explorer)
+- 63 HTTP routes (+8: tenancy)
+- 270+ unit tests (+20: tenancy)
+- 0 unsafe blocks
+- 4 SVG chart components
+- 14 nav items
+
 ## [1.0.0] — 2026-07-01
 
 ### Added — NXP Protocol (Part 3)

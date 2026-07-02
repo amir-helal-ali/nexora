@@ -25,11 +25,11 @@ binary internal communication, low-resource deployment, and deferred AI (reserve
 
 | Metric | Value |
 |--------|-------|
-| Rust crates | 15 |
-| Frontend pages | 15 |
-| HTTP routes | 55 |
+| Rust crates | 16 |
+| Frontend pages | 16 |
+| HTTP routes | 63 |
 | WebSocket message types | 6 |
-| Unit tests | 250+ |
+| Unit tests | 270+ |
 | `unsafe` blocks | 0 |
 | Docker images | 2 |
 | CI/CD jobs | 3 |
@@ -107,23 +107,24 @@ Open http://localhost:3000 → login with `admin` / `admin123`.
 
 ---
 
-## Services (8)
+## Services (9)
 
 | Service | Crate | Description |
 |---------|-------|-------------|
 | **Core** | `nexora-core` | Kernel: 8 subsystems (modules, registry, events, permissions, plugins, config, secrets, health) |
 | **Auth** | `nexora-auth` | User management, Argon2id passwords, Ed25519-signed tokens, sessions |
-| **Gateway** | `nexora-gateway` | HTTP API (55 routes), SSE, WebSocket, rate limiting, OpenAPI |
+| **Gateway** | `nexora-gateway` | HTTP API (63 routes), SSE, WebSocket, rate limiting, OpenAPI |
 | **Marketplace** | `nexora-marketplace` | 6 package types, 13-step install pipeline, Ed25519 signatures, SemVer, auto-update + rollback |
 | **Billing** | `nexora-billing` | Invoices, payments, subscriptions, revenue tracking |
 | **Workflow** | `nexora-workflow` | Event-driven automation pipelines, conditions, trigger substitution |
 | **Cluster** | `nexora-cluster` | Multi-node coordination, discovery, failover, load balancing |
 | **Notifications** | `nexora-notifications` | Per-user notifications, read/unread tracking, severity levels |
+| **Tenancy** | `nexora-tenancy` | Multi-tenancy: organizations, teams, memberships, role hierarchy |
 | **Storage** | `nexora-storage` | SQLite persistence for all data (users, events, packages, billing) |
 
 ---
 
-## Frontend Pages (15)
+## Frontend Pages (16)
 
 | Page | Description |
 |------|-------------|
@@ -138,6 +139,7 @@ Open http://localhost:3000 → login with `admin` / `admin123`.
 | `/cluster` | Cluster topology — node grid, register, heartbeat |
 | `/terminal` | WebSocket terminal — bidirectional real-time communication |
 | `/api-explorer` | Built-in API testing tool — 24 endpoints, request/response viewer |
+| `/organizations` | Multi-tenancy — create orgs, manage members, teams |
 | `/health` | Subsystem health grid |
 | `/settings` | Profile, change password, sessions, user management |
 | `/login` | Login form |
@@ -195,12 +197,12 @@ Open http://localhost:3000 → login with `admin` / `admin123`.
 | Part | Status | Details |
 |------|--------|---------|
 | Part 1 (Vision) | ✅ | Engineering-grade, production-ready |
-| Part 2 (Constitution) | ✅ | Rust only, doc-first, zero-trust, modular, event-driven |
+| Part 2 (Constitution) | ✅ | Rust only, doc-first, zero-trust, modular, event-driven, multi-tenancy (Law 23) |
 | Part 3 (NXP) | ✅ | 5 layers: QUIC + session + frames + MessagePack + app |
 | Part 4 (Core) | ✅ | 8 subsystems + Cluster Manager + Workflow Engine |
 | Part 5 (Marketplace) | ✅ | 6 package types, 13-step pipeline, auto-update + rollback |
-| Part 6 (Backend) | ✅ | API Gateway (55 routes, SSE, WebSocket, rate limiting) |
-| Part 7 (Frontend) | ✅ | SvelteKit, 15 pages, Command Palette, Notification Bell |
+| Part 6 (Backend) | ✅ | API Gateway (63 routes, SSE, WebSocket, rate limiting) |
+| Part 7 (Frontend) | ✅ | SvelteKit, 16 pages, Command Palette, Notification Bell, SVG charts |
 | Part 8 (Data) | ✅ | Event sourcing, SQLite persistence for all data |
 | Part 9 (Security) | ✅ | Argon2id, Ed25519 tokens, RBAC+ABAC, rate limiting, audit log |
 | Part 10 (Low-resource) | ✅ | SQLite embedded, single-binary, Docker |
