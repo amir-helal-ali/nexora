@@ -470,6 +470,107 @@ impl PgNotificationStore {
     }
 }
 
+// ============================================================
+// PgTenancyStore
+// ============================================================
+
+/// PostgreSQL-backed tenancy store (organizations, memberships, teams).
+pub struct PgTenancyStore {
+    db: PgDatabase,
+}
+
+impl PgTenancyStore {
+    /// Construct.
+    pub fn new(db: PgDatabase) -> Self { Self { db } }
+
+    /// Save organization (UPSERT).
+    pub async fn save_org(&self, org: &nexora_tenancy::types::Organization) -> Result<(), PgError> {
+        let conn = self.db.conn().await?;
+        conn.execute(
+            "INSERT INTO organizations (id, name, slug, tier, owner_id, description, active, created_at, max_members)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name, slug = EXCLUDED.slug, tier = EXCLUDED.tier,
+                active = EXCLUDED.active, max_members = EXCLUDED.max_members",
+            &[
+                &org.id, &org.name, &org.slug, &org.tier.to_string(),
+                &org.owner_id, &org.description,
+                &(org.active as i32), &org.created_at,
+                &(org.max_members as i32),
+            ],
+        ).await?;
+        Ok(())
+    }
+
+    /// Save membership (UPSERT on composite PK).
+    pub async fn save_membership(&self, m: &nexora_tenancy::types::Membership) -> Result<(), PgError> {
+        let conn = self.db.conn().await?;
+        conn.execute(
+            "INSERT INTO org_memberships (org_id, user_id, role, joined_at)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (org_id, user_id) DO UPDATE SET role = EXCLUDED.role",
+            &[&m.org_id, &m.user_id, &m.role.to_string(), &m.joined_at],
+        ).await?;
+        Ok(())
+    }
+
+    /// Delete membership.
+    pub async fn delete_membership(&self, org_id: &str, user_id: &str) -> Result<(), PgError> {
+        let conn = self.db.conn().await?;
+        conn.execute(
+            "DELETE FROM org_memberships WHERE org_id = $1 AND user_id = $2",
+            &[&org_id, &user_id],
+        ).await?;
+        Ok(())
+    }
+
+    /// Save team (UPSERT).
+    pub async fn save_team(&self, team: &nexora_tenancy::types::Team) -> Result<(), PgError> {
+        let member_ids_json = serde_json::to_string(&team.member_ids)?;
+        let conn = self.db.conn().await?;
+        conn.execute(
+            "INSERT INTO teams (id, org_id, name, description, member_ids_json, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name, description = EXCLUDED.description,
+                member_ids_json = EXCLUDED.member_ids_json",
+            &[
+                &team.id, &team.org_id, &team.name, &team.description,
+                &member_ids_json, &team.created_at,
+            ],
+        ).await?;
+        Ok(())
+    }
+
+    /// Delete team.
+    pub async fn delete_team(&self, id: &str) -> Result<(), PgError> {
+        let conn = self.db.conn().await?;
+        conn.execute("DELETE FROM teams WHERE id = $1", &[&id]).await?;
+        Ok(())
+    }
+
+    /// Count organizations.
+    pub async fn org_count(&self) -> Result<i64, PgError> {
+        let conn = self.db.conn().await?;
+        let row = conn.query_one("SELECT COUNT(*) FROM organizations", &[]).await?;
+        Ok(row.get(0))
+    }
+
+    /// Count memberships.
+    pub async fn membership_count(&self) -> Result<i64, PgError> {
+        let conn = self.db.conn().await?;
+        let row = conn.query_one("SELECT COUNT(*) FROM org_memberships", &[]).await?;
+        Ok(row.get(0))
+    }
+
+    /// Count teams.
+    pub async fn team_count(&self) -> Result<i64, PgError> {
+        let conn = self.db.conn().await?;
+        let row = conn.query_one("SELECT COUNT(*) FROM teams", &[]).await?;
+        Ok(row.get(0))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -503,5 +604,10 @@ mod tests {
     #[test]
     fn pg_notification_store_exists() {
         let _ = std::any::TypeId::of::<PgNotificationStore>();
+    }
+
+    #[test]
+    fn pg_tenancy_store_exists() {
+        let _ = std::any::TypeId::of::<PgTenancyStore>();
     }
 }

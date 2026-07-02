@@ -67,8 +67,8 @@ pub use workflows::SqliteWorkflowStore;
 pub use pg::{PgDatabase, PgError};
 #[cfg(feature = "postgres")]
 pub use pg_stores::{
-    PgBillingStore, PgEventStore, PgNotificationStore, PgPackageStore, PgUserStore,
-    PgWorkflowStore,
+    PgBillingStore, PgEventStore, PgNotificationStore, PgPackageStore, PgTenancyStore,
+    PgUserStore, PgWorkflowStore,
 };
 
 #[cfg(feature = "sqlite")]
