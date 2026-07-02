@@ -4,10 +4,12 @@
 # Run the entire platform with: docker-compose up
 #
 # Services:
-#   - backend:  Rust gateway (port 8080) — serves all API routes + WebSocket + SSE
-#   - frontend: SvelteKit app (port 3000) — proxies /api to the backend
+#   - backend:   Rust gateway (port 8080) — serves all API routes + WebSocket + SSE
+#   - frontend:  SvelteKit app (port 3000) — proxies /api to the backend
+#   - postgres:  PostgreSQL database (Tier 2/3) — optional, see profiles
 #
-# The backend persists data to a SQLite file in ./data/nexora.db
+# By default, the backend uses SQLite (Tier-1, embedded).
+# To use PostgreSQL (Tier 2/3), run: docker-compose --profile postgres up
 
 version: "3.9"
 
@@ -22,6 +24,8 @@ services:
       - NEXORA_BIND_ADDR=0.0.0.0:8080
       - NEXORA_DB_PATH=/app/data/nexora.db
       - RUST_LOG=info
+      # Uncomment to use PostgreSQL instead of SQLite:
+      # - DATABASE_URL=postgresql://nexora:nexora@postgres:5432/nexora
     volumes:
       - nexora-data:/app/data
     restart: unless-stopped
@@ -31,6 +35,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
 
   frontend:
     build:
@@ -45,6 +53,27 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # PostgreSQL — Tier 2/3 database (optional, enabled with --profile postgres)
+  postgres:
+    profiles: ["postgres"]
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=nexora
+      - POSTGRES_PASSWORD=nexora
+      - POSTGRES_DB=nexora
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexora"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   nexora-data:
+    driver: local
+  pg-data:
     driver: local

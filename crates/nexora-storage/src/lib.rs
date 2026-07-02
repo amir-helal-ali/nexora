@@ -23,40 +23,60 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
 
+#[cfg(feature = "sqlite")]
 pub mod billing;
+#[cfg(feature = "sqlite")]
 pub mod events;
+#[cfg(feature = "sqlite")]
 pub mod packages;
+#[cfg(feature = "sqlite")]
 pub mod schema;
+#[cfg(feature = "sqlite")]
 pub mod users;
 
+#[cfg(feature = "postgres")]
+pub mod pg;
+
+#[cfg(feature = "sqlite")]
 pub use billing::SqliteBillingStore;
+#[cfg(feature = "sqlite")]
 pub use events::SqliteEventStore;
+#[cfg(feature = "sqlite")]
 pub use packages::SqlitePackageStore;
+#[cfg(feature = "sqlite")]
 pub use schema::{init_schema, StorageError};
+#[cfg(feature = "sqlite")]
 pub use users::SqliteUserStore;
 
+#[cfg(feature = "postgres")]
+pub use pg::{PgDatabase, PgError};
+
+#[cfg(feature = "sqlite")]
 use parking_lot::Mutex;
+#[cfg(feature = "sqlite")]
 use rusqlite::Connection;
+#[cfg(feature = "sqlite")]
 use std::path::Path;
+#[cfg(feature = "sqlite")]
 use std::sync::Arc;
 
-/// A thread-safe SQLite connection pool. In v0.1 we use a single connection
-/// wrapped in a Mutex (SQLite serializes writes anyway). For higher throughput,
-/// v0.2 can use a connection pool.
+/// A thread-safe SQLite connection pool (Tier-1 backend).
+#[cfg(feature = "sqlite")]
 #[derive(Clone)]
 pub struct Database {
     conn: Arc<Mutex<Connection>>,
 }
 
+#[cfg(feature = "sqlite")]
 impl std::fmt::Debug for Database {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Database").finish_non_exhaustive()
     }
 }
 
+#[cfg(feature = "sqlite")]
 impl Database {
-    /// Open a database at the given path. Creates the file if it doesn't exist.
-    /// Initializes the schema if needed.
+    /// Open a database at the given path.
     pub fn open(path: impl AsRef<Path>) -> Result<Self, StorageError> {
         let conn = Connection::open(path)?;
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
