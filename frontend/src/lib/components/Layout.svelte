@@ -21,6 +21,7 @@
     { href: '/health', label: 'Health' },
     { href: '/search', label: 'Search' },
     { href: '/organizations', label: 'Orgs' },
+    { href: '/about', label: 'About' },
     { href: '/settings', label: 'Settings' },
   ];
 </script>
