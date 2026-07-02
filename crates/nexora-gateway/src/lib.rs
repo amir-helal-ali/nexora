@@ -48,5 +48,6 @@ pub mod middleware;
 pub mod routes;
 pub mod server;
 pub mod spec;
+pub mod sso;
 
 pub use server::GatewayServer;

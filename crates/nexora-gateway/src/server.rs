@@ -66,6 +66,8 @@ impl GatewayServer {
         let cluster_handler = Arc::new(cluster.handler());
         // Build the GraphQL schema.
         let graphql_schema = nexora_graphql::build_schema(core.clone());
+        // Initialize SSO state (empty by default — providers added via admin API).
+        let sso_state = Arc::new(crate::sso::SsoState::empty());
         Self {
             state: GatewayState {
                 auth: auth_handler,
@@ -76,6 +78,7 @@ impl GatewayServer {
                 cluster: cluster_handler,
                 notifications,
                 graphql: Some(Arc::new(graphql_schema)),
+                sso: Some(sso_state),
                 ready: true,
             },
         }
@@ -94,7 +97,12 @@ impl GatewayServer {
             .route("/api/auth/refresh", post(auth_refresh))
             .route("/api/ws", get(ws_handler))
             // GraphQL endpoint (POST for queries/mutations, GET for Playground HTML)
-            .route("/api/graphql", post(graphql_handler).get(graphql_handler_playground));
+            .route("/api/graphql", post(graphql_handler).get(graphql_handler_playground))
+            // SSO public routes (login flow + callbacks)
+            .route("/api/auth/sso/oidc/:provider/login", get(crate::sso::sso_oidc_login))
+            .route("/api/auth/sso/oidc/:provider/callback", get(crate::sso::sso_oidc_callback))
+            .route("/api/auth/sso/saml/:provider/login", get(crate::sso::sso_saml_login))
+            .route("/api/auth/sso/saml/:provider/acs", post(crate::sso::sso_saml_acs));
 
         // Protected routes — Bearer token required.
         let protected_routes = Router::new()
@@ -143,6 +151,10 @@ impl GatewayServer {
             .route("/api/notifications/:id/read", post(notifications_mark_read))
             .route("/api/notifications/read-all", post(notifications_mark_all_read))
             .route("/api/notifications/:id", axum::routing::delete(notifications_delete))
+            // SSO management routes (admin only — require Bearer token)
+            .route("/api/auth/sso/providers", get(crate::sso::sso_list_providers))
+            .route("/api/auth/sso/stats", get(crate::sso::sso_stats))
+            .route("/api/auth/sso/logout", post(crate::sso::sso_logout))
             .layer(from_fn_with_state(auth_middleware, require_token));
 
         Router::new()

@@ -54,6 +54,8 @@ pub struct GatewayState {
     pub notifications: Arc<nexora_notifications::NotificationService>,
     /// GraphQL schema (in-process).
     pub graphql: Option<Arc<nexora_graphql::NexoraSchema>>,
+    /// SSO state (OIDC + SAML). None if SSO is not configured.
+    pub sso: Option<Arc<crate::sso::SsoState>>,
     /// Whether the gateway is ready to serve traffic.
     pub ready: bool,
 }
@@ -998,7 +1000,7 @@ pub async fn cluster_pick(
     }
 }
 
-fn error_response(status: StatusCode, message: &str) -> Response {
+pub fn error_response(status: StatusCode, message: &str) -> Response {
     (
         status,
         Json(json!({
@@ -1291,6 +1293,7 @@ mod tests {
             cluster: std::sync::Arc::new(cluster.handler()),
             notifications,
             graphql: Some(std::sync::Arc::new(graphql_schema)),
+            sso: Some(std::sync::Arc::new(crate::sso::SsoState::empty())),
             ready: true,
         }
     }

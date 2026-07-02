@@ -47,6 +47,12 @@ pub mod email;
 #[cfg(feature = "webpush")]
 pub mod webpush;
 
+#[cfg(feature = "sms")]
+pub mod sms;
+
+#[cfg(feature = "slack")]
+pub mod slack;
+
 pub use channel::{Channel, ChannelKind, DeliveryStatus};
 pub use error::{NotificationError, NotificationResult};
 pub use message::{Notification, NotificationId, NotificationPayload, Priority};
@@ -58,3 +64,9 @@ pub use email::{EmailAdapter, EmailConfig};
 
 #[cfg(feature = "webpush")]
 pub use webpush::{WebPushAdapter, WebPushConfig, WebPushSubscription};
+
+#[cfg(feature = "sms")]
+pub use sms::{SmsAdapter, SmsConfig};
+
+#[cfg(feature = "slack")]
+pub use slack::{SlackAdapter, SlackConfig};

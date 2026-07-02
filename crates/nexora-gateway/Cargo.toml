@@ -10,7 +10,7 @@ nxp-core = { path = "../nxp-core" }
 nxp-security = { path = "../nxp-security" }
 nxp-payload = { path = "../nxp-payload" }
 nexora-core = { path = "../nexora-core" }
-nexora-auth = { path = "../nexora-auth" }
+nexora-auth = { path = "../nexora-auth", features = ["sso"] }
 nexora-marketplace = { path = "../nexora-marketplace" }
 nexora-billing = { path = "../nexora-billing" }
 nexora-workflow = { path = "../nexora-workflow" }

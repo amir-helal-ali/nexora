@@ -11,6 +11,10 @@ default = ["email", "webpush"]
 email = ["lettre"]
 # Web Push (RFC 8291 + VAPID)
 webpush = ["p256", "base64ct"]
+# SMS via Twilio REST API
+sms = []
+# Slack incoming webhooks
+slack = []
 
 [dependencies]
 nxp-core = { path = "../nxp-core" }
