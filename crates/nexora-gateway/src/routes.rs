@@ -1417,6 +1417,118 @@ pub async fn tenancy_stats(
     }
 }
 
+// ==================================================================
+// Global Search (protected — searches across all services)
+// ==================================================================
+
+/// Query params for global search.
+#[derive(Debug, Deserialize)]
+pub struct SearchQuery {
+    /// Search query.
+    pub q: String,
+}
+
+/// `GET /api/search?q=...` — unified search across events, packages, users, workflows, notifications.
+pub async fn global_search(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+    Query(q): Query<SearchQuery>,
+) -> Response {
+    let query = q.q.trim().to_lowercase();
+    if query.len() < 2 {
+        return Json(json!({ "ok": true, "results": [], "message": "query too short (min 2 chars)" })).into_response();
+    }
+
+    let mut results: Vec<Value> = Vec::new();
+
+    // Search events.
+    let events = state.core.core().events.snapshot();
+    for evt in events.iter().filter(|e| {
+        e.name.to_lowercase().contains(&query) || e.payload.payload_text().to_lowercase().contains(&query)
+    }).take(10) {
+        results.push(json!({
+            "type": "event",
+            "id": evt.id,
+            "title": evt.name,
+            "description": evt.payload.payload_text(),
+            "link": "/events",
+            "timestamp": evt.timestamp,
+        }));
+    }
+
+    // Search marketplace packages.
+    if let Ok(resp) = state.marketplace.execute("marketplace.search", &json!({"query": &q.q})).await {
+        if let Some(packages) = resp.get("packages").and_then(|p| p.as_array()) {
+            for pkg in packages.iter().take(10) {
+                results.push(json!({
+                    "type": "package",
+                    "id": pkg["manifest"]["id"],
+                    "title": pkg["manifest"]["name"],
+                    "description": pkg["manifest"]["description"],
+                    "link": "/marketplace",
+                }));
+            }
+        }
+    }
+
+    // Search users.
+    let users = state.auth.service().users.list();
+    for user in users.iter().filter(|u| {
+        u.username.to_lowercase().contains(&query) ||
+        u.email.as_ref().map(|e| e.to_lowercase().contains(&query)).unwrap_or(false)
+    }).take(10) {
+        results.push(json!({
+            "type": "user",
+            "id": user.id,
+            "title": user.username,
+            "description": user.email.as_deref().unwrap_or(""),
+            "link": "/settings",
+        }));
+    }
+
+    // Search workflows.
+    if let Ok(resp) = state.workflow.execute("workflow.list", &json!({})).await {
+        if let Some(wfs) = resp.get("workflows").and_then(|w| w.as_array()) {
+            for wf in wfs.iter().filter(|w| {
+                w["name"].as_str().map(|n| n.to_lowercase().contains(&query)).unwrap_or(false)
+            }).take(10) {
+                results.push(json!({
+                    "type": "workflow",
+                    "id": wf["id"],
+                    "title": wf["name"],
+                    "description": wf["description"],
+                    "link": "/workflows",
+                }));
+            }
+        }
+    }
+
+    // Search notifications (current user only).
+    if let Ok(resp) = state.notifications.execute("notification.list", &json!({"user_id": ctx.user_id})).await {
+        if let Some(notifs) = resp.get("notifications").and_then(|n| n.as_array()) {
+            for n in notifs.iter().filter(|n| {
+                n["title"].as_str().map(|t| t.to_lowercase().contains(&query)).unwrap_or(false) ||
+                n["body"].as_str().map(|b| b.to_lowercase().contains(&query)).unwrap_or(false)
+            }).take(10) {
+                results.push(json!({
+                    "type": "notification",
+                    "id": n["id"],
+                    "title": n["title"],
+                    "description": n["body"],
+                    "link": n["link"],
+                }));
+            }
+        }
+    }
+
+    Json(json!({
+        "ok": true,
+        "query": q.q,
+        "count": results.len(),
+        "results": results,
+    })).into_response()
+}
+
 fn error_response(status: StatusCode, message: &str) -> Response {
     (
         status,

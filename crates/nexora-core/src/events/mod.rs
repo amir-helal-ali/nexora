@@ -45,9 +45,14 @@ pub enum EventPayload {
     Empty,
 }
 
-impl Default for EventPayload {
-    fn default() -> Self {
-        Self::Empty
+impl EventPayload {
+    /// Returns the text representation of the payload (for search/display).
+    pub fn payload_text(&self) -> String {
+        match self {
+            Self::Text(s) => s.clone(),
+            Self::Bytes(b) => hex::encode(b),
+            Self::Empty => String::new(),
+        }
     }
 }
 

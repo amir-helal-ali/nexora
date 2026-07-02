@@ -20,7 +20,7 @@ use crate::routes::{
     marketplace_list_installed, marketplace_process_auto_updates, marketplace_publish,
     marketplace_rollback_package, marketplace_search, marketplace_uninstall,
     marketplace_update_package, openapi, workflow_get, workflow_list, workflow_list_executions,
-    workflow_register, workflow_stats, workflow_trigger, ws_handler, dashboard_stats, tenancy_add_member, tenancy_create_org, tenancy_get_org, tenancy_list_members, tenancy_list_orgs, tenancy_list_teams, tenancy_my_orgs, tenancy_stats, user_change_password, user_create, user_delete, user_list, user_profile, user_sessions, GatewayState,
+    workflow_register, workflow_stats, workflow_trigger, ws_handler, dashboard_stats, tenancy_add_member, tenancy_create_org, tenancy_get_org, tenancy_list_members, tenancy_list_orgs, tenancy_list_teams, tenancy_my_orgs, tenancy_stats, user_change_password, user_create, user_delete, user_list, user_profile, user_sessions, global_search, GatewayState,
 };
 use axum::{
     middleware::from_fn_with_state,
@@ -136,6 +136,7 @@ impl GatewayServer {
             .route("/api/cluster/stats", get(cluster_stats))
             .route("/api/cluster/pick", get(cluster_pick))
             .route("/api/dashboard/stats", get(dashboard_stats))
+            .route("/api/search", get(global_search))
             // Tenancy routes
             .route("/api/tenancy/orgs", get(tenancy_list_orgs).post(tenancy_create_org))
             .route("/api/tenancy/my_orgs", get(tenancy_my_orgs))

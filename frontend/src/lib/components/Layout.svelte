@@ -19,6 +19,7 @@
     { href: '/terminal', label: 'Terminal' },
     { href: '/api-explorer', label: 'API' },
     { href: '/health', label: 'Health' },
+    { href: '/search', label: 'Search' },
     { href: '/organizations', label: 'Orgs' },
     { href: '/settings', label: 'Settings' },
   ];
