@@ -1,8 +1,9 @@
 # Nexora — Cloud Operating System
 
 > A production-grade, full-stack cloud operating system built in Rust + SvelteKit.
-> Implements a binary protocol (NXP), kernel, 8 services, marketplace, billing,
-> cluster manager, and a real-time web UI — all in one repository.
+> Implements a binary protocol (NXP), kernel, 9 services, marketplace, billing,
+> cluster manager, multi-tenancy, and a real-time web UI — all in one repository.
+> PostgreSQL is the primary database (SQLite available for Tier-1 edge).
 
 [![CI](https://github.com/amir-helal-ali/nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/amir-helal-ali/nexora/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -28,8 +29,10 @@ binary internal communication, low-resource deployment, and deferred AI (reserve
 | Rust crates | 16 |
 | Frontend pages | 16 |
 | HTTP routes | 63 |
-| WebSocket message types | 6 |
-| Unit tests | 270+ |
+| Database | PostgreSQL (primary) + SQLite (edge) |
+| SQLite tables | 13 |
+| PostgreSQL stores | 6 native |
+| Unit tests | 320+ |
 | `unsafe` blocks | 0 |
 | Docker images | 2 |
 | CI/CD jobs | 3 |
@@ -203,9 +206,9 @@ Open http://localhost:3000 → login with `admin` / `admin123`.
 | Part 5 (Marketplace) | ✅ | 6 package types, 13-step pipeline, auto-update + rollback |
 | Part 6 (Backend) | ✅ | API Gateway (63 routes, SSE, WebSocket, rate limiting) |
 | Part 7 (Frontend) | ✅ | SvelteKit, 16 pages, Command Palette, Notification Bell, SVG charts |
-| Part 8 (Data) | ✅ | Event sourcing, SQLite persistence for all data |
+| Part 8 (Data) | ✅ | Event sourcing, PostgreSQL (primary) + SQLite (edge), 13 tables, 100% persistence |
 | Part 9 (Security) | ✅ | Argon2id, Ed25519 tokens, RBAC+ABAC, rate limiting, audit log |
-| Part 10 (Low-resource) | ✅ | SQLite embedded, single-binary, Docker |
+| Part 10 (Low-resource) | ✅ | SQLite embedded for edge, single-binary, Docker |
 | Part 11 (AI) | ✅ | Opcodes reserved, rejected at dispatch (deferred) |
 | Part 13 (Observability) | ✅ | Health monitoring, structured logging, metrics page |
 | Part 14 (Deployment) | ✅ | Cluster manager, Docker, CI/CD, edge-ready |

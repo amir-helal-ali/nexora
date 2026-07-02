@@ -2,6 +2,52 @@
 
 All notable changes to Nexora are documented in this file.
 
+## [1.2.0] — 2026-07-02
+
+### Changed — PostgreSQL is now the default database
+- nexora-storage: `default = ["postgres"]` (was `["sqlite"]`)
+- PostgreSQL is always-on in docker-compose (not optional profile)
+- DATABASE_URL=postgresql://nexora:nexora@postgres:5432/nexora
+- SQLite remains available for Tier-1 edge only (`--no-default-features --features sqlite`)
+- Dockerfile.backend: added libpq-dev (build) + libpq5 (runtime) + curl
+
+### Added — PostgreSQL-native stores (6)
+- PgUserStore: create, count, record_login, delete
+- PgEventStore: publish (write + broadcast), replay (with filter), count
+- PgPackageStore: save, mark_installed, mark_uninstalled, count
+- PgBillingStore: save_invoice, save_payment, save_subscription, 3 counts
+- PgWorkflowStore: save_workflow, save_execution, 2 counts
+- PgNotificationStore: save, mark_read, count, unread_count
+- All use bb8 connection pool + ON CONFLICT UPSERT + BIGSERIAL + BYTEA + LIKE
+
+### Added — Workflow Persistence
+- 2 new SQLite tables: workflows, workflow_executions
+- SqliteWorkflowStore: save_workflow, save_execution, load_workflows, load_executions
+- JSON serialization for triggers, steps, step results
+- 9 unit tests
+
+### Added — Notification Persistence
+- New SQLite table: notifications (with indexes on user_id + unread)
+- SqliteNotificationStore: save, mark_read, mark_all_read, delete, delete_read,
+  count, unread_count, load_for_user, load_all
+- 12 unit tests
+
+### Added — Organization/Tenancy Persistence
+- 3 new SQLite tables: organizations, org_memberships, teams
+- SqliteTenancyStore: save_org, save_membership, delete_membership, save_team,
+  delete_team, org_count, membership_count, team_count
+- 6 unit tests
+
+### Statistics (v1.2.0)
+- 16 Rust crates
+- 16 frontend pages
+- 63 HTTP routes
+- 320+ unit tests (+50 since v1.1.0)
+- 13 SQLite tables (100% persistence coverage)
+- 6 PostgreSQL-native stores
+- 0 unsafe blocks
+- Database: PostgreSQL (primary) + SQLite (edge fallback)
+
 ## [1.1.0] — 2026-07-02
 
 ### Added — Multi-Tenancy (Part 2 Law 23)
