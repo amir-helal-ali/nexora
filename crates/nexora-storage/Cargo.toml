@@ -18,6 +18,7 @@ nexora-marketplace = { path = "../nexora-marketplace" }
 nexora-billing = { path = "../nexora-billing" }
 nexora-workflow = { path = "../nexora-workflow" }
 nexora-notifications = { path = "../nexora-notifications" }
+nexora-tenancy = { path = "../nexora-tenancy" }
 tokio.workspace = true
 tracing.workspace = true
 thiserror.workspace = true

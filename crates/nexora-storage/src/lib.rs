@@ -34,6 +34,8 @@ pub mod packages;
 #[cfg(feature = "sqlite")]
 pub mod schema;
 #[cfg(feature = "sqlite")]
+pub mod tenancy;
+#[cfg(feature = "sqlite")]
 pub mod users;
 #[cfg(feature = "sqlite")]
 pub mod workflows;
@@ -54,6 +56,8 @@ pub use notifications::SqliteNotificationStore;
 pub use packages::SqlitePackageStore;
 #[cfg(feature = "sqlite")]
 pub use schema::{init_schema, StorageError};
+#[cfg(feature = "sqlite")]
+pub use tenancy::SqliteTenancyStore;
 #[cfg(feature = "sqlite")]
 pub use users::SqliteUserStore;
 #[cfg(feature = "sqlite")]

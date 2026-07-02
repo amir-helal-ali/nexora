@@ -162,6 +162,40 @@ pub fn init_schema(conn: &Connection) -> Result<(), StorageError> {
         );
         CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id);
         CREATE INDEX IF NOT EXISTS idx_notif_unread ON notifications(user_id, read);
+
+        -- Organizations table
+        CREATE TABLE IF NOT EXISTS organizations (
+            id                  TEXT PRIMARY KEY,
+            name                TEXT NOT NULL,
+            slug                TEXT UNIQUE NOT NULL,
+            tier                TEXT NOT NULL,
+            owner_id            TEXT NOT NULL,
+            description         TEXT NOT NULL DEFAULT '',
+            active              INTEGER NOT NULL DEFAULT 1,
+            created_at          INTEGER NOT NULL,
+            max_members         INTEGER NOT NULL
+        );
+
+        -- Organization memberships table
+        CREATE TABLE IF NOT EXISTS org_memberships (
+            org_id              TEXT NOT NULL,
+            user_id             TEXT NOT NULL,
+            role                TEXT NOT NULL,
+            joined_at           INTEGER NOT NULL,
+            PRIMARY KEY (org_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_memberships_user ON org_memberships(user_id);
+
+        -- Teams table
+        CREATE TABLE IF NOT EXISTS teams (
+            id                  TEXT PRIMARY KEY,
+            org_id              TEXT NOT NULL,
+            name                TEXT NOT NULL,
+            description         TEXT NOT NULL DEFAULT '',
+            member_ids_json     TEXT NOT NULL DEFAULT '[]',
+            created_at          INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_teams_org ON teams(org_id);
         ",
     )?;
     Ok(())
