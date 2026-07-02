@@ -6,10 +6,12 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
 
+pub mod email;
 pub mod handler;
 pub mod store;
 pub mod types;
 
+pub use email::{EmailAdapter, EmailConfig, EmailError};
 pub use handler::NotificationHandler;
 pub use store::{NotificationError, NotificationStore};
 pub use types::{Notification, NotificationId, NotificationSeverity};
