@@ -130,6 +130,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("           -H 'Content-Type: application/json' \\");
     tracing::info!("           -d '{{\"username\":\"admin\",\"password\":\"admin123\"}}'");
 
-    let server = GatewayServer::new(core, auth, marketplace, billing, workflow, cluster);
+    let notifications = std::sync::Arc::new(nexora_notifications::NotificationService::new());
+    let server = GatewayServer::new(core, auth, marketplace, billing, workflow, cluster, notifications);
     server.serve(addr).await
 }

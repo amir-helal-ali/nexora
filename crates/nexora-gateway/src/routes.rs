@@ -19,6 +19,7 @@ use axum::{
         IntoResponse, Json, Response,
     },
 };
+use axum::response::Response as AxumResponse;
 use nexora_auth::AuthHandler;
 use nexora_billing::BillingHandler;
 use nexora_cluster::ClusterHandler;
@@ -49,6 +50,10 @@ pub struct GatewayState {
     pub workflow: Arc<WorkflowHandler>,
     /// Cluster handler (in-process).
     pub cluster: Arc<ClusterHandler>,
+    /// Notifications service (in-process).
+    pub notifications: Arc<nexora_notifications::NotificationService>,
+    /// GraphQL schema (in-process).
+    pub graphql: Option<Arc<nexora_graphql::NexoraSchema>>,
     /// Whether the gateway is ready to serve traffic.
     pub ready: bool,
 }
@@ -1004,6 +1009,254 @@ fn error_response(status: StatusCode, message: &str) -> Response {
         .into_response()
 }
 
+// ==================================================================
+// Notifications — in-app notification routes
+// ==================================================================
+
+/// `GET /api/notifications?limit=20` — list in-app notifications for the
+/// authenticated user.
+pub async fn notifications_list(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+    Query(limit_query): Query<LimitQuery>,
+) -> AxumResponse {
+    let limit = limit_query.limit.unwrap_or(20).min(100) as usize;
+    let list = state
+        .notifications
+        .in_app_store()
+        .list(&ctx.user_id, limit);
+    Json(json!({
+        "notifications": list,
+        "count": list.len(),
+    })).into_response()
+}
+
+/// `POST /api/notifications` — send a notification (admin/service only).
+pub async fn notifications_send(
+    State(state): State<GatewayState>,
+    Json(body): Json<Value>,
+) -> AxumResponse {
+    let user_id = body
+        .get("user_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let title = body
+        .get("title")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let body_text = body
+        .get("body")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let action_url = body
+        .get("action_url")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    if user_id.is_empty() || title.is_empty() {
+        return error_response(StatusCode::BAD_REQUEST, "user_id and title are required");
+    }
+
+    match state
+        .notifications
+        .send_in_app(user_id, title, body_text, action_url)
+    {
+        Ok(n) => (StatusCode::CREATED, Json(json!({"notification": n}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// `GET /api/notifications/unread-count` — count unread notifications.
+pub async fn notifications_unread_count(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let count = state.notifications.in_app_store().unread_count(&ctx.user_id);
+    Json(json!({ "unread": count })).into_response()
+}
+
+/// `GET /api/notifications/stats` — delivery stats.
+pub async fn notifications_stats(
+    State(state): State<GatewayState>,
+) -> AxumResponse {
+    let recent = state.notifications.recent_deliveries(100);
+    let total = recent.len();
+    let delivered = state
+        .notifications
+        .count_by_status(nexora_notifications::DeliveryStatus::Delivered);
+    let failed = state
+        .notifications
+        .count_by_status(nexora_notifications::DeliveryStatus::Failed);
+    let pending = state
+        .notifications
+        .count_by_status(nexora_notifications::DeliveryStatus::Pending);
+    let channels = state.notifications.channel_names();
+    Json(json!({
+        "total": total,
+        "delivered": delivered,
+        "failed": failed,
+        "pending": pending,
+        "channels": channels,
+    })).into_response()
+}
+
+/// `POST /api/notifications/:id/read` — mark a notification as read.
+pub async fn notifications_mark_read(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> AxumResponse {
+    if state
+        .notifications
+        .in_app_store()
+        .mark_read(&ctx.user_id, &id)
+    {
+        Json(json!({"ok": true})).into_response()
+    } else {
+        error_response(StatusCode::NOT_FOUND, "notification not found")
+    }
+}
+
+/// `POST /api/notifications/read-all` — mark all as read.
+pub async fn notifications_mark_all_read(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let count = state
+        .notifications
+        .in_app_store()
+        .mark_all_read(&ctx.user_id);
+    Json(json!({"marked_read": count})).into_response()
+}
+
+/// `DELETE /api/notifications/:id` — delete a notification.
+pub async fn notifications_delete(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> AxumResponse {
+    if state
+        .notifications
+        .in_app_store()
+        .delete(&ctx.user_id, &id)
+    {
+        Json(json!({"ok": true})).into_response()
+    } else {
+        error_response(StatusCode::NOT_FOUND, "notification not found")
+    }
+}
+
+/// Query parameter for limit-based pagination.
+#[derive(Deserialize)]
+pub struct LimitQuery {
+    pub limit: Option<u64>,
+}
+
+// ==================================================================
+// GraphQL — alternative query endpoint
+// ==================================================================
+
+/// `POST /api/graphql` — execute a GraphQL query/mutation.
+pub async fn graphql_handler(
+    State(state): State<GatewayState>,
+    Json(req): Json<Value>,
+) -> AxumResponse {
+    let schema = match &state.graphql {
+        Some(s) => s.clone(),
+        None => {
+            return error_response(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "GraphQL not configured on this gateway",
+            )
+        }
+    };
+
+    // Parse the standard GraphQL request: { "query": "...", "variables": {...}, "operationName": "..." }
+    let query = req
+        .get("query")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let operation_name = req
+        .get("operationName")
+        .and_then(|v| v.as_str());
+    let variables = req
+        .get("variables")
+        .cloned()
+        .unwrap_or(Value::Null);
+
+    if query.is_empty() {
+        return error_response(StatusCode::BAD_REQUEST, "missing 'query' field");
+    }
+
+    let gql_req = async_graphql::Request::from(query.to_string())
+        .variables(
+            async_graphql::Variables::from_json(
+                serde_json::from_value(variables).unwrap_or_default(),
+            ),
+        );
+    let gql_req = if let Some(op) = operation_name {
+        gql_req.operation_name(op)
+    } else {
+        gql_req
+    };
+
+    let resp = schema.execute(gql_req).await;
+    let json = serde_json::to_value(&resp).unwrap_or(json!({"errors": [{"message": "serialization failed"}]}));
+    Json(json).into_response()
+}
+
+/// `GET /api/graphql` — serve the GraphQL Playground HTML.
+pub async fn graphql_handler_playground(State(state): State<GatewayState>) -> AxumResponse {
+    if state.graphql.is_none() {
+        return error_response(StatusCode::SERVICE_UNAVAILABLE, "GraphQL not configured");
+    }
+    (
+        StatusCode::OK,
+        [(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        GRAPHQL_PLAYGROUND_HTML,
+    )
+        .into_response()
+}
+
+/// Build the Playground HTML for a given schema.
+pub fn graphql_playground_html(_schema: Arc<nexora_graphql::NexoraSchema>) -> AxumResponse {
+    (
+        StatusCode::OK,
+        [(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        GRAPHQL_PLAYGROUND_HTML,
+    ).into_response()
+}
+
+/// GraphQL Playground HTML (served at GET /api/graphql).
+const GRAPHQL_PLAYGROUND_HTML: &str = r#"<!DOCTYPE html>
+<html>
+<head>
+  <title>Nexora GraphQL Playground</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/static/css/index.css" />
+  <link rel="shortcut icon" href="https://cdn.jsdelivr.net/npm/graphql-playground-react/favicon.png" />
+  <script src="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/static/js/middleware.js"></script>
+</head>
+<body>
+  <div id="root">
+    <style>
+      body { background-color: rgb(23, 42, 58); font-family: sans-serif; color: white; padding: 2rem; }
+      h1 { color: #61dafb; }
+    </style>
+    <h1>Nexora GraphQL</h1>
+    <p>Loading Playground… if it does not load, the CDN may be blocked.</p>
+    <p>Endpoint: <code>POST /api/graphql</code></p>
+  </div>
+  <script>
+    window.addEventListener('load', function () {
+      GraphQLPlayground.init(document.getElementById('root'), {
+        endpoint: '/api/graphql',
+        settings: { 'request.credentials': 'include' }
+      });
+    });
+  </script>
+</body>
+</html>"#;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1027,6 +1280,8 @@ mod tests {
         let billing = std::sync::Arc::new(nexora_billing::BillingService::new(core.clone()));
         let workflow = std::sync::Arc::new(nexora_workflow::WorkflowService::new(core.clone()));
         let cluster = std::sync::Arc::new(nexora_cluster::ClusterService::new(core.clone()));
+        let notifications = std::sync::Arc::new(nexora_notifications::NotificationService::new());
+        let graphql_schema = nexora_graphql::build_schema(core.clone());
         GatewayState {
             auth: std::sync::Arc::new(AuthHandler::new(auth.clone())),
             core: std::sync::Arc::new(CoreHandler::new(core.clone())),
@@ -1034,6 +1289,8 @@ mod tests {
             billing: std::sync::Arc::new(billing.handler()),
             workflow: std::sync::Arc::new(workflow.handler()),
             cluster: std::sync::Arc::new(cluster.handler()),
+            notifications,
+            graphql: Some(std::sync::Arc::new(graphql_schema)),
             ready: true,
         }
     }

@@ -16,6 +16,8 @@ members = [
     "crates/nexora-storage",
     "crates/nexora-wasm-sandbox",
     "crates/nexora-benchmarks",
+    "crates/nexora-notifications",
+    "crates/nexora-graphql",
     "crates/nxp-cli",
     "demo",
 ]
@@ -100,6 +102,17 @@ url = "2.5"
 
 # JSON Web Tokens for OIDC
 jsonwebtoken = "9.3"
+
+# Email (SMTP) for notifications
+lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1-rustls-tls"] }
+
+# Web Push (RFC 8291 + VAPID)
+base64ct = { version = "1.6", features = ["alloc"] }
+p256 = { version = "0.13", features = ["ecdsa", "pkcs8", "arithmetic"] }
+
+# GraphQL (async-graphql + axum integration)
+async-graphql = "7.0"
+async-graphql-axum = "7.0"
 
 [profile.release]
 opt-level = 3
