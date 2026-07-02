@@ -4,58 +4,18 @@
 # Run the entire platform with: docker-compose up
 #
 # Services:
-#   - backend:   Rust gateway (port 8080) — serves all API routes + WebSocket + SSE
+#   - postgres:  PostgreSQL 16 (primary database — Tier 2/3)
+#   - backend:   Rust gateway (port 8080) — all API routes + WebSocket + SSE
 #   - frontend:  SvelteKit app (port 3000) — proxies /api to the backend
-#   - postgres:  PostgreSQL database (Tier 2/3) — optional, see profiles
 #
-# By default, the backend uses SQLite (Tier-1, embedded).
-# To use PostgreSQL (Tier 2/3), run: docker-compose --profile postgres up
+# PostgreSQL is the DEFAULT database. SQLite is available as a fallback
+# for Tier-1 (edge) deployments only.
 
 version: "3.9"
 
 services:
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
-    ports:
-      - "8080:8080"
-    environment:
-      - NEXORA_BIND_ADDR=0.0.0.0:8080
-      - NEXORA_DB_PATH=/app/data/nexora.db
-      - RUST_LOG=info
-      # Uncomment to use PostgreSQL instead of SQLite:
-      # - DATABASE_URL=postgresql://nexora:nexora@postgres:5432/nexora
-    volumes:
-      - nexora-data:/app/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    depends_on:
-      postgres:
-        condition: service_healthy
-        required: false
-
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - BACKEND_URL=http://backend:8080
-    depends_on:
-      backend:
-        condition: service_healthy
-    restart: unless-stopped
-
-  # PostgreSQL — Tier 2/3 database (optional, enabled with --profile postgres)
+  # ── PostgreSQL (primary database) ──────────────────────────────────
   postgres:
-    profiles: ["postgres"]
     image: postgres:16-alpine
     ports:
       - "5432:5432"
@@ -72,8 +32,42 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Backend (Rust gateway) ────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8080:8080"
+    environment:
+      - NEXORA_BIND_ADDR=0.0.0.0:8080
+      - DATABASE_URL=postgresql://nexora:nexora@postgres:5432/nexora
+      - RUST_LOG=info
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ── Frontend (SvelteKit) ──────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://backend:8080
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
-  nexora-data:
-    driver: local
   pg-data:
     driver: local

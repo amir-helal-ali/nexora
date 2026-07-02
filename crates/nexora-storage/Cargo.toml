@@ -3,10 +3,10 @@ name = "nexora-storage"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Nexora persistent storage — SQLite (Tier-1) + PostgreSQL (Tier 2/3) backends"
+description = "Nexora persistent storage — PostgreSQL (primary) + SQLite (Tier-1 edge fallback)"
 
 [features]
-default = ["sqlite"]
+default = ["postgres"]
 sqlite = ["rusqlite"]
 postgres = ["tokio-postgres", "bb8", "bb8-postgres"]
 
@@ -27,7 +27,7 @@ serde_json = "1.0"
 rmp-serde.workspace = true
 parking_lot.workspace = true
 rusqlite = { workspace = true, optional = true }
-tokio-postgres = { version = "0.7", optional = true }
+tokio-postgres = { version = "0.7", features = ["with-serde_json-1"], optional = true }
 bb8 = { version = "0.8", optional = true }
 bb8-postgres = { version = "0.8", optional = true }
 uuid.workspace = true
