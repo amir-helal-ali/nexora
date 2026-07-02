@@ -41,6 +41,9 @@ pub mod workflows;
 #[cfg(feature = "postgres")]
 pub mod pg;
 
+#[cfg(feature = "postgres")]
+pub mod pg_stores;
+
 #[cfg(feature = "sqlite")]
 pub use billing::SqliteBillingStore;
 #[cfg(feature = "sqlite")]
@@ -58,6 +61,11 @@ pub use workflows::SqliteWorkflowStore;
 
 #[cfg(feature = "postgres")]
 pub use pg::{PgDatabase, PgError};
+#[cfg(feature = "postgres")]
+pub use pg_stores::{
+    PgBillingStore, PgEventStore, PgNotificationStore, PgPackageStore, PgUserStore,
+    PgWorkflowStore,
+};
 
 #[cfg(feature = "sqlite")]
 use parking_lot::Mutex;
