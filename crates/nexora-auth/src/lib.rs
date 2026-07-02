@@ -18,6 +18,7 @@
 #![warn(missing_docs, rust_2018_idioms)]
 
 pub mod handler;
+pub mod mfa;
 pub mod password;
 pub mod store;
 pub mod token;

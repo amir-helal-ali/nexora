@@ -31,6 +31,10 @@ time.workspace = true
 sha2.workspace = true
 url.workspace = true
 
+# MFA (TOTP) — RFC 6238
+hmac = "0.12"
+sha1 = "0.10"
+
 # Optional SSO dependencies (behind feature flag)
 reqwest = { workspace = true, optional = true }
 jsonwebtoken = { workspace = true, optional = true }

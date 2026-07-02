@@ -19,6 +19,7 @@ members = [
     "crates/nexora-notifications",
     "crates/nexora-graphql",
     "crates/nexora-rules",
+    "crates/nexora-audit",
     "crates/nxp-cli",
     "demo",
 ]
