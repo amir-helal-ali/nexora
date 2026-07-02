@@ -28,6 +28,8 @@ pub mod billing;
 #[cfg(feature = "sqlite")]
 pub mod events;
 #[cfg(feature = "sqlite")]
+pub mod notifications;
+#[cfg(feature = "sqlite")]
 pub mod packages;
 #[cfg(feature = "sqlite")]
 pub mod schema;
@@ -43,6 +45,8 @@ pub mod pg;
 pub use billing::SqliteBillingStore;
 #[cfg(feature = "sqlite")]
 pub use events::SqliteEventStore;
+#[cfg(feature = "sqlite")]
+pub use notifications::SqliteNotificationStore;
 #[cfg(feature = "sqlite")]
 pub use packages::SqlitePackageStore;
 #[cfg(feature = "sqlite")]
