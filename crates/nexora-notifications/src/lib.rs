@@ -40,6 +40,7 @@ pub mod error;
 pub mod message;
 pub mod service;
 pub mod store;
+pub mod webhook;
 
 #[cfg(feature = "email")]
 pub mod email;
@@ -58,6 +59,7 @@ pub use error::{NotificationError, NotificationResult};
 pub use message::{Notification, NotificationId, NotificationPayload, Priority};
 pub use service::NotificationService;
 pub use store::{InAppStore, InAppNotification};
+pub use webhook::{AuthScheme, WebhookAdapter, WebhookConfig};
 
 #[cfg(feature = "email")]
 pub use email::{EmailAdapter, EmailConfig};

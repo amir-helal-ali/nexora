@@ -50,4 +50,7 @@ pub mod server;
 pub mod spec;
 pub mod sso;
 
+#[cfg(test)]
+pub mod integration_tests;
+
 pub use server::GatewayServer;
