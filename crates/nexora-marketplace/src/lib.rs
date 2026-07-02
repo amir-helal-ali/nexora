@@ -1,18 +1,18 @@
-//! Nexora Marketplace — full software economy layer.
+//! متجر Nexora — طبقة اقتصاد برمجي كاملة.
 //!
-//! See Nexora Engineering Specification, Part 5. The Marketplace allows
-//! developers to build, publish, distribute, monetize, and manage packages
-//! (Modules, Plugins, AI Agents, Templates, Services, Automations).
+//! انظر مواصفة Nexora الهندسية، الجزء 5. يسمح المتجر للمطورين ببناء،
+//! نشر، توزيع، تحقيق دخل، وإدارة الحزم (وحدات، مكونات، وكلاء AI،
+//! قوالب، خدمات، أتمتة).
 //!
-//! # Subsystems
+//! # الأنظمة الفرعية
 //!
-//! - [`version`]: SemVer parsing + comparison + version ranges
-//! - [`package`]: Package model, types, manifest
-//! - [`signature`]: Ed25519 signature verification + SHA-256 integrity
-//! - [`dependency`]: Dependency graph with acyclic validation
-//! - [`store`]: PackageStore (CRUD + search + rating)
-//! - [`install`]: 13-step installation pipeline
-//! - [`handler`]: Marketplace NXP handler
+//! - [`version`]: تحليل SemVer + مقارنة + نطاقات النسخ
+//! - [`package`]: نموذج الحزمة، الأنواع، البيان
+//! - [`signature`]: التحقق من توقيع Ed25519 + نزاهة SHA-256
+//! - [`dependency`]: رسم بياني للتبعيات مع تحقق غير دوري
+//! - [`store`]: مخزن الحزم (CRUD + بحث + تقييم)
+//! - [`install`]: خط أنابيب تثبيت 13 خطوة
+//! - [`handler`]: معالج NXP للمتجر
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]

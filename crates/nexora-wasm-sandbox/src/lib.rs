@@ -1,14 +1,14 @@
-//! # Nexora WASM Plugin Sandbox
+//! # صندوق حماية مكونات Nexora WASM
 //!
-//! Secure runtime for user-supplied WebAssembly modules (Part 9 of the spec).
+//! بيئة تشغيل آمنة لوحدات WebAssembly التي يقدمها المستخدم (الجزء 9 من المواصفة).
 //!
-//! ## Design
+//! ## التصميم
 //!
-//! - Each plugin runs in its own `wasmtime::Engine` with strict resource limits.
-//! - Capabilities are explicit: a plugin can only call host functions it has been granted.
-//! - Fuel-based execution prevents infinite loops.
-//! - Memory is capped per-instance.
-//! - Wall-clock and CPU timeouts are enforced by the scheduler.
+//! - كل مكون يعمل في `wasmtime::Engine` خاصة به مع حدود موارد صارمة.
+//! - القدرات صريحة: المكون يمكنه فقط استدعاء دوال المضيف التي مُنحت له.
+//! - التنفيذ القائم على الوقود يمنع الحلقات اللانهائية.
+//! - الذاكرة محدودة لكل نسخة.
+//! - مهلات زمن الساعة و CPU تُفرض بواسطة المجدول.
 //!
 //! ## Example
 //!

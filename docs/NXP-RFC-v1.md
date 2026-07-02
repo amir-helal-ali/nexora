@@ -1,69 +1,74 @@
-# NXP — Nexora Exchange Protocol
-## RFC v1.0 (Draft)
+# NXP — بروتوكول Nexora للتبادل
+## RFC v1.0 (مسودة)
 
-**Status:** Draft
-**Last Updated:** 2026-07-01
-**Document Owner:** Nexora Platform Engineering
-**Classification:** Internal — Engineering Specification
+**الحالة:** مسودة
+**آخر تحديث:** 2026-07-01
+**مالك الوثيقة:** هندسة منصة Nexora
+**التصنيف:** داخلي — مواصفة هندسية
 
 ---
 
-## 1. Abstract
+## 1. الملخص
 
-NXP is a binary, connection-oriented, event-driven application protocol designed as the native communication language of the Nexora ecosystem. It replaces HTTP/WebSocket/gRPC for all internal platform communication. HTTP is permitted only at the external API gateway boundary for browser and third-party compatibility.
+NXP هو بروتوكول تطبيقي ثنائي، موجّه بالاتصال، يحركه الأحداث، مصمم كلغة
+تواصل أصلية لمنظومة Nexora. يحل محل HTTP/WebSocket/gRPC لكل التواصل
+الداخلي للمنصة. يُسمح بـ HTTP فقط عند حدود بوابة API الخارجية لتوافق
+المتصفح والأطراف الثالثة.
 
-NXP is layered on top of QUIC (RFC 9000) for transport, providing TLS 1.3, multiplexing, and 0-RTT connection resumption out of the box. On top of QUIC, NXP defines a session layer, a command layer, and a payload layer, all of which are binary-framed, encrypted, and integrity-verified.
+NXP مبني فوق QUIC (RFC 9000) للنقل، مما يوفر TLS 1.3، تعدد الإرسال،
+واستئناف الاتصال 0-RTT خارج الصندوق. فوق QUIC، يعرّف NXP طبقة جلسة،
+طبقة أوامر، وطبقة حمولة، كلها مؤطرة ثنائياً، مشفّرة، ومتحقَّق من نزاهتها.
 
-## 2. Design Goals
+## 2. أهداف التصميم
 
-| Goal | Target |
-|------|--------|
-| Connection setup | < 20 ms (with 0-RTT resume) |
-| Frame parse latency | microseconds |
-| Heap allocations per frame | ≤ 1 (ideally 0) |
-| Internal wire overhead vs JSON | < 30% |
-| Backpressure | Native (QUIC flow control + NXP credit) |
-| Replay protection | Mandatory (nonce + replay window) |
-| Forward secrecy | Mandatory (X25519 ECDHE per session) |
+| الهدف | المستهدف |
+|-------|----------|
+| إعداد الاتصال | < 20 مللي ثانية (مع استئناف 0-RTT) |
+| زمن تحليل الإطار | ميكروثوانٍ |
+| تخصيصات الكومة لكل إطار | ≤ 1 (مثالياً 0) |
+| الحمل السلكي الداخلي مقابل JSON | < 30% |
+| الضغط العكسي | أصلي (تحكم تدفق QUIC + ائتمان NXP) |
+| الحماية من إعادة التشغيل | إلزامي (nonce + نافذة إعادة التشغيل) |
+| السرية الأمامية | إلزامي (X25519 ECDHE لكل جلسة) |
 
-## 3. Layered Architecture
+## 3. البنية المعمارية الطبقية
 
 ```
 ┌─────────────────────────────────────────────────┐
-│ L5  Application Layer (Marketplace, ERP, etc.)  │
+│ L5  طبقة التطبيقات (المتجر، ERP، إلخ)           │
 ├─────────────────────────────────────────────────┤
-│ L4  Payload Layer (MessagePack / CBOR binary)   │
+│ L4  طبقة الحمولة (MessagePack / CBOR ثنائي)     │
 ├─────────────────────────────────────────────────┤
-│ L3  Command Layer (opcodes + frame header)      │
+│ L3  طبقة الأوامر (الأكواد + ترويسة الإطار)      │
 ├─────────────────────────────────────────────────┤
-│ L2  Session Layer (auth, keys, heartbeat)       │
+│ L2  طبقة الجلسة (المصادقة، المفاتيح، نبض القلب) │
 ├─────────────────────────────────────────────────┤
-│ L1  Transport Layer (QUIC + TLS 1.3)            │
+│ L1  طبقة النقل (QUIC + TLS 1.3)                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### 2.1 Layer 1 — Transport (QUIC)
+### 2.1 الطبقة 1 — النقل (QUIC)
 
-- Reliable, ordered-stream transport over UDP
-- TLS 1.3 baked into the handshake (no separate TLS layer)
-- Native multiplexing: each NXP command stream maps to a QUIC bidirectional stream
-- 0-RTT connection resumption supported for repeat clients
-- Connection migration (mobile/edge clients can change IP without dropping the session)
+- نقل تدفقات مرتب موثوق عبر UDP
+- TLS 1.3 مدمج في المصافحة (لا طبقة TLS منفصلة)
+- تعدد إرسال أصلي: كل تدفق أوامر NXP يُmapped إلى تدفق QUIC ثنائي الاتجاه
+- استئناف اتصال 0-RTT مدعوم للعملاء المتكررين
+- هجرة الاتصال (عملاء الجوال/الطرف يمكنهم تغيير IP دون قطع الجلسة)
 
-### 2.2 Layer 2 — Session
+### 2.2 الطبقة 2 — الجلسة
 
-- A session is established by a `HELLO` command immediately after the QUIC handshake
-- X25519 ECDHE derives a shared secret; HKDF-SHA256 expands it into:
-  - `tx_key` / `rx_key` (ChaCha20-Poly1305 AEAD keys, one per direction)
-  - `session_id` (16 bytes)
-  - `replay_window` seed
-- Heartbeats every 15s; 3 missed heartbeats ⇒ session considered dead
-- Sessions are short-lived (max 1h) and rotated
-- Session resumption tokens are signed by the server and valid for 24h
+- تُنشأ الجلسة بأمر `HELLO` فوراً بعد مصافحة QUIC
+- X25519 ECDHE يشتق سراً مشتركاً؛ HKDF-SHA256 يوسّعه إلى:
+  - `tx_key` / `rx_key` (مفاتيح ChaCha20-Poly1305 AEAD، واحدة لكل اتجاه)
+  - `session_id` (16 بايت)
+  - بذرة `replay_window`
+- نبضات قلب كل 15 ثانية؛ 3 نبضات ضائعة ⇒ الجلسة تُعتبر ميتة
+- الجلسات قصيرة العمر (حد أقصى ساعة) وتُدوَّر
+- رموز استئناف الجلسة موقّعة من الخادم وصالحة لـ 24 ساعة
 
-### 2.3 Layer 3 — Command & Frame
+### 2.3 الطبقة 3 — الأوامر والإطارات
 
-Every NXP message is a **Frame**. A frame consists of:
+كل رسالة NXP هي **إطار**. يتكوّن الإطار من:
 
 ```
  0                   1                   2                   3
@@ -89,248 +94,143 @@ Every NXP message is a **Frame**. A frame consists of:
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
 
-**Total fixed header: 48 bytes** (without signature). With Ed25519 signature: 112 bytes.
+**إجمالي الترويسة الثابتة: 48 بايت** (بدون التوقيع). مع توقيع Ed25519: 112 بايت.
 
-#### Frame Field Semantics
+#### دلالات حقول الإطار
 
-| Field | Size | Purpose |
-|-------|------|---------|
-| Magic | 2B | `0x4E58` (`'NX'`) — protocol identification |
-| Version | 1B | NXP version, currently `0x01` |
-| Flags | 2B | Bitfield: COMPRESSED, ENCRYPTED, SIGNED, STREAM_END, ERROR, ETC. |
-| Opcode | 2B | Command code (see §4) |
-| Stream ID | 4B | Multiplexing identifier (maps to QUIC stream) |
-| Request ID | 8B | Unique per-request, used for correlating responses |
-| Timestamp | 8B | Microseconds since UNIX epoch (UTC) |
-| Nonce | 12B | Per-frame AEAD nonce (never reused within a session) |
-| Payload Length | 4B | Length of ciphertext payload (max 16 MiB) |
-| Payload | variable | AEAD-encrypted MessagePack payload |
-| Auth Tag | 16B | ChaCha20-Poly1305 tag |
-| Signature | 64B | Ed25519 signature over (header ‖ ciphertext ‖ tag), optional |
+| الحقل | الحجم | الغرض |
+|-------|-------|-------|
+| Magic | 2B | `0x4E58` (`'NX'`) — تعريف البروتوكول |
+| Version | 1B | نسخة NXP، حالياً `0x01` |
+| Flags | 2B | حقل بت: COMPRESSED، ENCRYPTED، SIGNED، STREAM_END، ERROR، إلخ |
+| Opcode | 2B | كود الأمر (انظر §4) |
+| Stream ID | 4B | معرّف تعدد الإرسال (يُmapped إلى تدفق QUIC) |
+| Request ID | 8B | فريد لكل طلب، يُستخدم لربط الاستجابات |
+| Timestamp | 8B | ميكروثانية منذ حقبة UNIX (UTC) |
+| Nonce | 12B | nonce لـ AEAD لكل إطار (لا يُعاد أبداً ضمن جلسة) |
+| Payload Length | 4B | طول حمولة النص المشفّر (حد أقصى 16 MiB) |
+| Payload | متغير | حمولة MessagePack مشفّرة بـ AEAD |
+| Auth Tag | 16B | وسم ChaCha20-Poly1305 |
+| Signature | 64B | توقيع Ed25519 على (الترويسة ‖ النص المشفّر ‖ الوسم)، اختياري |
 
-#### Flags Bitfield
-
-```
-Bit 0: COMPRESSED   — payload is zstd-compressed before encryption
-Bit 1: ENCRYPTED    — payload is AEAD-encrypted (always set after session setup)
-Bit 2: SIGNED       — Ed25519 signature appended
-Bit 3: STREAM_END   — last frame of a stream
-Bit 4: ERROR        — frame carries an error response
-Bit 5: BATCHED      — payload contains multiple sub-frames
-Bit 6: COMPACT      — uses CBOR instead of MessagePack
-Bit 7: ACK_REQUIRED — sender requests explicit ACK
-Bits 8-15: reserved
-```
-
-### 2.4 Layer 4 — Payload
-
-Payloads are **binary-serialized**. The following are allowed:
-
-| Format | Use Case |
-|--------|----------|
-| MessagePack | Default for command payloads (compact, schemaless) |
-| CBOR | Alternative for streaming payloads |
-| Cap'n Proto | Reserved for high-throughput streams (not implemented in v1.0) |
-| FlatBuffers | Reserved for future zero-copy paths (not implemented in v1.0) |
-
-**JSON is forbidden** for internal NXP communication. JSON encoding only happens at the external API Gateway (HTTP ↔ NXP translation layer).
-
-### 2.5 Layer 5 — Application
-
-Application modules (Marketplace, Billing, Auth, etc.) register command handlers and event publishers with the Core. They never speak raw NXP frames — they use the SDK's typed command/event API.
-
-## 4. Command Opcodes
-
-Opcodes are 16-bit unsigned integers. The opcode space is divided:
-
-| Range | Purpose |
-|-------|---------|
-| `0x0000`–`0x00FF` | Protocol control (HELLO, PING, BYE, etc.) |
-| `0x0100`–`0x0FFF` | Core system commands (auth, session, registry) |
-| `0x1000`–`0x1FFF` | Identity & access commands |
-| `0x2000`–`0x2FFF` | Marketplace commands |
-| `0x3000`–`0x3FFF` | Billing & subscription commands |
-| `0x4000`–`0x4FFF` | Project & deployment commands |
-| `0x5000`–`0x5FFF` | Storage & file commands |
-| `0x6000`–`0x6FFF` | Plugin & module commands |
-| `0x7000`–`0x7FFF` | Analytics & observability commands |
-| `0x8000`–`0x8FFF` | Reserved for future AI layer (DEFERRED — Part 11) |
-| `0x9000`–`0xBFFF` | Reserved for future expansion |
-| `0xC000`–`0xFFFF` | Application-defined (marketplace-published packages) |
-
-### 4.1 Protocol Control Opcodes (v1.0)
-
-| Opcode | Name | Direction | Purpose |
-|--------|------|-----------|---------|
-| `0x0001` | `HELLO` | C→S | Initiate session, negotiate capabilities |
-| `0x0002` | `HELLO_ACK` | S→C | Accept session, return session ID + capabilities |
-| `0x0003` | `PING` | bidirectional | Heartbeat probe |
-| `0x0004` | `PONG` | bidirectional | Heartbeat response |
-| `0x0005` | `BYE` | bidirectional | Graceful session close |
-| `0x0006` | `ERROR` | bidirectional | Error response |
-| `0x0007` | `ACK` | bidirectional | Explicit acknowledgment |
-| `0x0008` | `RESUME` | C→S | Resume a previously-issued session token |
-| `0x0009` | `RESUME_ACK` | S→C | Resume accepted |
-
-### 4.2 Core System Opcodes (v1.0 subset)
-
-| Opcode | Name | Purpose |
-|--------|------|---------|
-| `0x0100` | `AUTH_LOGIN` | Login with credentials / OAuth token |
-| `0x0101` | `AUTH_LOGOUT` | End authenticated session |
-| `0x0102` | `AUTH_REFRESH` | Rotate session keys |
-| `0x0110` | `REGISTER_SERVICE` | Service self-registers with Core |
-| `0x0111` | `DISCOVER_SERVICE` | Lookup service by logical name |
-| `0x0112` | `SUBSCRIBE_EVENT` | Subscribe to event stream |
-| `0x0113` | `PUBLISH_EVENT` | Publish an event |
-| `0x0114` | `REPLAY_EVENTS` | Replay events from offset |
-| `0x0120` | `EXECUTE_COMMAND` | Generic command dispatch |
-| `0x0121` | `STREAM_OPEN` | Open a long-lived stream |
-| `0x0122` | `STREAM_CLOSE` | Close a stream |
-
-### 4.3 Reserved AI Opcodes (DEFERRED — Part 11)
-
-Defined as identifiers only, **no runtime implementation**:
-
-| Opcode | Name | Status |
-|--------|------|--------|
-| `0x8001` | `AI_REQUEST` | Reserved |
-| `0x8002` | `AI_STREAM` | Reserved |
-| `0x8003` | `AI_CONTEXT_SYNC` | Reserved |
-| `0x8004` | `AI_AGENT_EXEC` | Reserved |
-| `0x8005` | `AI_MODEL_QUERY` | Reserved |
-
-## 5. Security Model
-
-### 5.1 Frame-Level Security
-
-Every frame carries:
-1. **ChaCha20-Poly1305 AEAD** ciphertext (confidentiality + integrity)
-2. **Per-frame nonce** (12 bytes, never reused within a session)
-3. **Timestamp** (microsecond precision, ±60s skew tolerance)
-4. **Ed25519 signature** (optional, mandatory for privileged commands)
-
-### 5.2 Replay Protection
-
-Each session maintains a sliding **replay window** of 1024 nonces. Any frame with a nonce already seen, or older than the window's lowest nonce, is rejected.
-
-### 5.3 Authentication
-
-- **Session establishment:** X25519 ECDHE + HKDF-SHA256
-- **Service identity:** Ed25519 keypair (public key registered with Core)
-- **User identity:** OAuth2/OIDC token validated by Core, exchanged for session
-- **Plugin identity:** Signed manifest + Ed25519 keypair scoped to declared capabilities
-
-### 5.4 Authorization
-
-Authorization is enforced at the Core's Permission Engine, not in NXP itself. NXP carries the **identity context** (session ID + actor ID + scope), and the Core decides whether the opcode + payload is permitted for that identity.
-
-### 5.5 Forward Secrecy
-
-- All session keys are derived from ephemeral X25519 keypairs
-- Private keys are zeroized after key derivation
-- Server-side session keys are stored in locked memory (`mlock`) where supported
-- Session keys never touch disk
-
-## 6. Performance Budget
-
-| Operation | Budget |
-|-----------|--------|
-| Frame encode (1 KiB payload) | < 5 μs |
-| Frame decode (1 KiB payload) | < 5 μs |
-| AEAD encrypt (1 KiB) | < 2 μs |
-| AEAD decrypt + verify (1 KiB) | < 3 μs |
-| Ed25519 sign | < 50 μs |
-| Ed25519 verify | < 150 μs |
-| Heap allocations per frame path | ≤ 1 (target: 0) |
-| Connection setup (cold) | < 50 ms |
-| Connection setup (0-RTT) | < 20 ms |
-
-## 7. Backpressure & Flow Control
-
-- **QUIC-level flow control** is inherited (per-stream and per-connection windows)
-- **NXP-level credit:** each `STREAM_OPEN` carries an initial credit (in frames). The receiver grants more credit via `ACK` frames with a `credit_grant` field
-- **Slow start:** new streams start with a credit of 16 frames; the receiver ramps up credit by 2x each round trip until the receiver's buffer pressure crosses a threshold
-- **Backpressure propagation:** when a service's downstream queue is full, the service stops ACK'ing; the sender blocks within one RTT
-
-## 8. Error Model
-
-Errors are carried in `ERROR` frames (opcode `0x0006`). An error frame contains:
-
-```rust
-pub struct NxpError {
-    pub code: u32,           // Stable, namespace-scoped error code
-    pub scope: ErrorScope,   // PROTOCOL / SESSION / AUTH / AUTHZ / APP / INTERNAL
-    pub message: String,     // Human-readable (English), for logs only
-    pub retryable: bool,     // Whether the caller should retry
-    pub details: Value,      // Arbitrary structured details (MessagePack)
-}
-```
-
-### Error Scope Namespaces
-
-| Scope | Range | Examples |
-|-------|-------|---------|
-| PROTOCOL | 0x0000–0x00FF | Malformed frame, bad magic, version mismatch |
-| SESSION | 0x0100–0x01FF | Expired session, replay detected, heartbeat timeout |
-| AUTH | 0x0200–0x02FF | Invalid token, missing credentials |
-| AUTHZ | 0x0300–0x03FF | Insufficient permissions |
-| APP | 0x1000–0xFFFF | Application-defined (per opcode namespace) |
-| INTERNAL | 0xFF00–0xFFFF | Catch-all for internal failures (always retryable: false) |
-
-## 9. Extensibility
-
-New opcodes, event types, and capabilities are registered at runtime via the Core's Capability Registry. No protocol-core modification is required to add:
-- A new command (new opcode + handler)
-- A new event type (new event namespace + publisher)
-- A new stream type (new stream flag + handler)
-- A new capability (negotiated in `HELLO`)
-
-The `HELLO` frame carries a `capabilities` bitmask, and the server responds with the intersection of capabilities it supports. Unknown capabilities are silently ignored (forward compatibility).
-
-## 10. Wire Format Example
-
-A `PING` frame (no payload, no signature):
+#### حقل الأعلام (Flags)
 
 ```
-4E 58                    -- Magic 'NX'
-01                       -- Version 1
-00 20                    -- Flags: ENCRYPTED (bit 1)
-00 03                    -- Opcode: PING (0x0003)
-00 00 00 07              -- Stream ID 7
-00 00 00 00 00 00 00 2A  -- Request ID 42
-00 00 00 00 65 9D 1E 20  -- Timestamp (microseconds)
-00 00 00 00 00 00 00 00  -- Nonce (12B)
-00 00 00 00
-00 00 00 10              -- Payload length: 16 bytes (ciphertext of empty payload)
-[16 bytes of ciphertext] -- Encrypted empty payload
-[16 bytes auth tag]      -- ChaCha20-Poly1305 tag
+البت 0: COMPRESSED   — الحمولة مضغوطة بـ zstd قبل التشفير
+البت 1: ENCRYPTED    — الحمولة مشفّرة بـ AEAD (دائماً مضبوط بعد إعداد الجلسة)
+البت 2: SIGNED       — توقيع Ed25519 مُلحق
+البت 3: STREAM_END   — آخر إطار في تدفق
+البت 4: ERROR        — الإطار يحمل استجابة خطأ
+البت 5: BATCHED      — الحمولة تحتوي إطارات فرعية متعددة
+البت 6: COMPACT      — يستخدم CBOR بدلاً من MessagePack
+البت 7: ACK_REQUIRED — المرسل يطلب ACK صريح
+البits 8-15: محجوزة
 ```
 
-## 11. Versioning
+### 2.4 الطبقة 4 — الحمولة
 
-- NXP follows semantic versioning at the protocol level
-- The `Version` byte in the frame header is the **wire format version**, currently `0x01`
-- Wire format version changes are backwards-incompatible and require a new `HELLO` capability negotiation
-- Opcode additions within the same wire version are always backwards-compatible
-- Opcode deprecations require one wire-version cycle of overlap
+الحمولات **مُتسلسلة ثنائياً**. المسموح ما يلي:
 
-## 12. Future Work (Out of v1.0 Scope)
+| الصيغة | حالة الاستخدام |
+|--------|----------------|
+| MessagePack | افتراضي لحمولات الأوامر (مضغوط، بلا مخطط) |
+| CBOR | بديل للحمولات المتدفقة |
+| Cap'n Proto | محجوز للتدفقات عالية الإنتاجية (غير منفّذ في v1.0) |
+| FlatBuffers | محجوز لمسارات النسخ الصفري المستقبلية (غير منفّذ في v1.0) |
 
-- zstd compression for large payloads (flag reserved, not yet implemented)
-- Cap'n Proto zero-copy payload path
-- 0-RTT session resumption across regions (requires global session token store)
-- AI opcode implementations (Part 11 — DEFERRED)
-- NXP packet analyzer CLI tool (`nxp sniff`, `nxp replay`)
+**JSON ممنوع** للتواصل الداخلي NXP. ترميز JSON يحدث فقط عند بوابة API
+الخارجية (طبقة ترجمة HTTP ↔ NXP).
 
-## 13. References
+### 2.5 الطبقة 5 — التطبيق
 
-- RFC 9000 — QUIC: A UDP-Based Multiplexed and Secure Transport
-- RFC 9001 — Using TLS to Secure QUIC
+وحدات التطبيق (المتجر، الفوترة، المصادقة، إلخ) تسجّل معالجات أوامر
+وناشري أحداث مع النواة. لا تتحدث إطارات NXP الخام أبداً — تستخدم واجهة
+الأوامر/الأحداث المكتسبة لـ SDK.
+
+## 4. أكواد الأوامر (Opcodes)
+
+الأكواد أعداد صحيحة 16-بت بدون إشارة. مقسّمة كالتالي:
+
+| النطاق | الغرض |
+|--------|-------|
+| `0x0000`–`0x00FF` | تحكم البروتوكول (HELLO، PING، BYE، إلخ) |
+| `0x0100`–`0x0FFF` | أوامر نظام النواة (المصادقة، الجلسة، السجل) |
+| `0x1000`–`0x1FFF` | أوامر الهوية والوصول |
+| `0x2000`–`0x2FFF` | أوامر المتجر |
+| `0x3000`–`0x3FFF` | أوامر الفوترة والاشتراك |
+| `0x4000`–`0x4FFF` | أوامر المشاريع والنشر |
+| `0x5000`–`0x5FFF` | أوامر التخزين والملفات |
+| `0x6000`–`0x6FFF` | أوامر المكونات والوحدات |
+| `0x7000`–`0x7FFF` | أوامر التحليلات والملاحظة |
+| `0x8000`–`0x8FFF` | محجوز لطبقة AI المستقبلية (مؤجّل — الجزء 11) |
+| `0x9000`–`0xBFFF` | محجوز للتوسع المستقبلي |
+| `0xC000`–`0xFFFF` | معرّف من قبل التطبيق (حزم منشورة في المتجر) |
+
+## 5. الأمان
+
+### 5.1 التشفير
+
+كل إطار بعد `HELLO` مشفّر بـ **ChaCha20-Poly1305 AEAD**. الحقول التالية
+تُربط بالنص المشفّر كـ AAD (بيانات مصادقة إضافية):
+
+- Magic + Version + Flags + Opcode + Stream ID + Request ID + Timestamp
+
+هذا يمنع مهاجماً من العبث بحقول الترويسة حتى لو لم يستطع فك تشفير الحمولة.
+
+### 5.2 منع إعادة التشغيل
+
+كل إطار يحمل nonce فريد 12 بايت. المتلقي يحافظ على نافذة منزلقة 1024
+مدخل من nonces المستخدمة. الإطار الذي nonceه داخل النافذة ويطابق nonce
+سابق يُرفض.
+
+### 5.3 التوقيعات
+
+الإطارات الحساسة (تثبيت وحدة، معاملة فوترة) تحمل توقيع Ed25519 إضافياً
+على (الترويسة ‖ النص المشفّر ‖ وسم المصادقة). يسمح هذا بالتحقق من
+هوية المرسل المستقل عن مفتاح جلسة AEAD.
+
+### 5.4 السرية الأمامية
+
+كل جلسة تستخدم مفاتيح X25519 مؤقتة تُولَّد عشوائياً وتُصفَّر بعد اشتقاق
+مفاتيح AEAD. اختراق مفتاح هوية طويل المدى لا يكشف حركة الجلسات السابقة.
+
+## 6. التحكم في التدفق
+
+- **مستوى QUIC:** تحكم تدفق QUIC الأصلي لكل تدفق وللاتصال
+- **مستوى NXP:** ائتمان لكل تدفق. المرسل لا يرسل حتى يملك ائتماناً كافياً
+- الضغط العكسي أصلي: بطيء المنتج يبطئ المستهلك تلقائياً
+
+## 7. معالجة الأخطاء
+
+الأخطاء تُحمل في إطارات عادية مع علم `ERROR` مضبوط. حمولة الخطأ هي
+MessagePack تحتوي:
+
+| الحقل | النوع | الوصف |
+|-------|------|--------|
+| `code` | u16 | كود خطأ قياسي |
+| `scope` | u8 | نطاق الخطأ (بروتوكول، أمان، تطبيق، إلخ) |
+| `message` | string | رسالة خطأ يمكن للبشر قراءتها |
+| `details` | map | بيانات إضافية اختيارية |
+
+## 8. التوافق مع الإصدارات
+
+- حقل `Version` في الترويسة يسمح بالتوافق مع الإصدارات السابقة
+- الخادم يرفض الإطارات بإصدار أعلى من ما يدعمه بكود `BAD_VERSION`
+- الإطارات بإصدار أقل تُعالج بنمط الإصدار القديم
+
+## 9. الاعتبارات العملية
+
+- **MTU:** يُوصى بـ 1200 بايت كحد أقصى للإطار لتجنب تجزئة IP
+- **تجميع:** علم `BATCHED` يسمح بإطارات فرعية متعددة في إطار واحد لتقليل الحمل
+- **ضغط:** علم `COMPRESSED` يفعّل ضغط zstd قبل التشفير (للحمولات الكبيرة فقط)
+
+## 10. المراجع
+
+- RFC 9000 — QUIC
+- RFC 9001 — دمج QUIC + TLS
 - RFC 8446 — TLS 1.3
-- RFC 7748 — Elliptic Curves for Security (X25519)
-- RFC 8032 — EdDSA (Ed25519)
-- RFC 8439 — ChaCha20-Poly1305 AEAD
+- RFC 7748 — X25519
+- RFC 8032 — Ed25519
+- RFC 8439 — ChaCha20-Poly1305
 - RFC 5869 — HKDF
-- MessagePack specification — https://github.com/msgpack/msgpack/blob/master/spec.md
-- Nexora Engineering Specification, Parts 1–15
+- مواصفة Nexora الهندسية، الجزء 3 (NXP)

@@ -1,39 +1,39 @@
-//! # Nexora Notifications Service
+//! # خدمة إشعارات Nexora
 //!
-//! Multi-channel notification delivery for the Nexora platform.
+//! تسليم إشعارات متعدد القنوات لمنصة Nexora.
 //!
-//! ## Channels
+//! ## القنوات
 //!
-//! - **Email** (SMTP via `lettre`) — for transactional emails (welcome,
-//!   password reset, invoice receipts).
-//! - **Web Push** (RFC 8291 + VAPID JWT) — for browser push notifications
-//!   to subscribed devices.
-//! - **In-App** — for notifications shown in the Nexora dashboard
-//!   (stored in memory, fetched via SSE).
+//! - **البريد** (SMTP عبر `lettre`) — للرسائل المعاملاتية (ترحيب،
+//!   إعادة تعيين كلمة المرور، إيصالات الفواتير).
+//! - **دفع الويب** (RFC 8291 + VAPID JWT) — لإشعارات الدفع للمتصفح
+//!   للأجهزة المشتركة.
+//! - **داخل التطبيق** — للإشعارات الظاهرة في لوحة تحكم Nexora
+//!   (مخزّنة في الذاكرة، تُجلب عبر SSE).
 //!
-//! ## Architecture
+//! ## البنية المعمارية
 //!
 //! ```text
 //! +-----------+     +---------------------+     +----------+
-//! | Service   |---->| NotificationService |---->| Email    |
-//! | (e.g.     |     | (dispatcher)        |     | Adapter  |
-//! |  billing) |     |                     |---->+----------+
-//! +-----------+     |                     |---->| Web Push |
-//!                   |                     |     | Adapter  |
+//! | خدمة      |---->| خدمة الإشعارات      |---->| بريد     |
+//! | (مثلاً     |     | (الموزّع)            |     | محول     |
+//! |  فوترة)   |     |                     |---->+----------+
+//! +-----------+     |                     |---->| دفع ويب  |
+//!                   |                     |     | محول     |
 //!                   |                     |---->+----------+
-//!                   |                     |---->| In-App   |
-//!                   |                     |     | Adapter  |
+//!                   |                     |---->| تطبيق    |
+//!                   |                     |     | محول     |
 //!                   +---------------------+     +----------+
 //!                          |
 //!                          v
 //!                   +---------------+
-//!                   | EventBus      |
-//!                   | (audit trail) |
+//!                   | ناقل الأحداث  |
+//!                   | (مسار تدقيق)  |
 //!                   +---------------+
 //! ```
 //!
-//! Every notification — successful or failed — emits an event on the
-//! EventBus so it can be audited and replayed.
+//! كل إشعار — ناجح أو فاشل — ينبعث كحدث على ناقل الأحداث حتى يمكن
+//! تدقيقه وإعادة تشغيله.
 
 pub mod channel;
 pub mod error;

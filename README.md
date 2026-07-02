@@ -1,71 +1,71 @@
 # Nexora — NXP + Core + Auth + Gateway + Frontend + Marketplace + Storage + Billing v0.1.0
 
-> Production-grade implementation of the **Nexora Exchange Protocol (NXP)**,
-> **Nexora Core** (cloud OS kernel), the **Auth/Identity Service**, the
-> **API Gateway** (HTTP ↔ NXP), the **SvelteKit Frontend**, the
-> **Marketplace Service**, **Persistent Storage** (SQLite), and the
-> **Billing Service** (invoices, payments, subscriptions).
+> تنفيذ إنتاجي لـ **بروتوكول Nexora للتبادل (NXP)**،
+> و**Nexora Core** (نواة نظام تشغيل سحابي)، و**خدمة المصادقة/الهوية**،
+> و**بوابة API** (HTTP ↔ NXP)، و**واجهة SvelteKit الأمامية**،
+> و**خدمة المتجر**، و**التخزين الدائم** (PostgreSQL + SQLite)،
+> و**خدمة الفوترة** (فواتير، مدفوعات، اشتراكات)، و**صندوق WASM للمكونات**،
+> و**خدمة الإشعارات متعددة القنوات**، و**نقطة نهاية GraphQL**.
 
-This repository implements **Parts 3, 4, 5, 6, 7, 8, 9, 10, 11, 13** of the
-Nexora Engineering Specification (v1.0). Together, these form a complete
-full-stack platform with durable storage and revenue generation: from binary
-protocol through kernel, services, gateway, marketplace, persistence, billing,
-to a browser UI.
+ينفذ هذا المستودع **الأجزاء 3، 4، 5، 6، 7، 8، 9، 10، 11، 13** من
+مواصفات Nexora الهندسية (v1.0). معاً، تشكّل هذه الأجزاء منصة كاملة
+متكاملة مع تخزين دائم وتوليد إيرادات: من البروتوكول الثنائي عبر النواة،
+الخدمات، البوابة، المتجر، التخزين، الفوترة، إلى واجهة المتصفح.
 
-## Status
+## الحالة
 
-| Component | Status | Test Coverage |
-|-----------|--------|---------------|
-| `nxp-core` (frames, opcodes, errors) | ✅ Implemented | 15 unit tests |
-| `nxp-payload` (MessagePack / CBOR) | ✅ Implemented | 4 unit tests |
-| `nxp-security` (AEAD, Ed25519, X25519, replay) | ✅ Implemented | 13 unit tests |
-| `nxp-session` (HELLO handshake, manager, heartbeat) | ✅ Implemented | 6 unit tests |
-| `nxp-transport` (QUIC via `quinn`) | ✅ Implemented | 2 unit tests + E2E demo |
-| `nxp-cli` (`nxp` command-line tool) | ✅ Implemented | manual E2E |
-| `nexora-core` (kernel: 8 subsystems + handler) | ✅ Implemented | 42 unit tests + 7 smoke tests |
-| `nexora-auth` (user mgmt, sessions, tokens) | ✅ Implemented | 30 unit tests + 8 smoke scenarios |
-| `nexora-gateway` (HTTP ↔ NXP, 27 routes, SSE) | ✅ Implemented | 9 unit tests + curl E2E |
-| `nexora-marketplace` (packages, 13-step pipeline, deps, signatures) | ✅ Implemented | 55 unit tests |
-| `nexora-storage` (SQLite: users, events, packages) | ✅ Implemented | 14 unit tests + persistence demo |
-| `nexora-billing` (invoices, payments, subscriptions) | ✅ Implemented | 17 unit tests + curl E2E |
-| `frontend/` (SvelteKit 2 + Svelte 5 + Tailwind 3, 8 pages) | ✅ Implemented | build verified + E2E |
-| `demo` (9 demo binaries + smoke tests) | ✅ Working | end-to-end verified |
-| AI opcodes (Part 11) | ✅ Reserved (rejected at dispatch) | n/a |
-| zstd compression | ⏳ Flag reserved, not yet implemented | n/a |
-| PostgreSQL backend (Tier 2/3) | ⏳ SQLite works (Tier-1); PostgreSQL pending | n/a |
-| Cluster Manager (multi-node) | ⏳ Pending v0.2 | n/a |
-| Update Engine | ⏳ Pending v0.2 | n/a |
+| المكوّن | الحالة | تغطية الاختبارات |
+|---------|--------|-------------------|
+| `nxp-core` (الإطارات، الأكواد، الأخطاء) | ✅ منفّذ | 15 اختبار وحدة |
+| `nxp-payload` (MessagePack / CBOR) | ✅ منفّذ | 4 اختبارات وحدة |
+| `nxp-security` (AEAD، Ed25519، X25519، منع إعادة التشغيل) | ✅ منفّذ | 13 اختبار وحدة |
+| `nxp-session` (مصافحة HELLO، المدير، نبض القلب) | ✅ منفّذ | 6 اختبارات وحدة |
+| `nxp-transport` (QUIC عبر `quinn`) | ✅ منفّذ | 2 اختبار وحدة + عرض نهاية-لنهاية |
+| `nxp-cli` (أداة سطر أوامر `nxp`) | ✅ منفّذ | يدوي نهاية-لنهاية |
+| `nexora-core` (النواة: 8 أنظمة فرعية + معالج) | ✅ منفّذ | 42 اختبار وحدة + 7 اختبارات دخان |
+| `nexora-auth` (إدارة المستخدمين، الجلسات، الرموز) | ✅ منفّذ | 30 اختبار وحدة + 8 سيناريوهات دخان |
+| `nexora-gateway` (HTTP ↔ NXP، 64+ مسار، SSE، WebSocket) | ✅ منفّذ | 9 اختبارات وحدة + curl نهاية-لنهاية |
+| `nexora-marketplace` (الحزم، خط أنابيب 13 خطوة، التبعيات، التوقيعات) | ✅ منفّذ | 55 اختبار وحدة |
+| `nexora-storage` (PostgreSQL + SQLite) | ✅ منفّذ | 25 اختبار وحدة + عرض استمرارية |
+| `nexora-billing` (فواتير، مدفوعات، اشتراكات) | ✅ منفّذ | 17 اختبار وحدة + curl نهاية-لنهاية |
+| `nexora-notifications` (بريد، دفع ويب، داخل التطبيق) | ✅ منفّذ | 46 اختبار وحدة |
+| `nexora-graphql` (GraphQL + Playground) | ✅ منفّذ | 8 اختبارات وحدة |
+| `nexora-wasm-sandbox` (صندوق WASM آمن) | ✅ منفّذ | 21 اختبار وحدة |
+| `nexora-benchmarks` (9 مجموعات قياس أداء) | ✅ منفّذ | 10 اختبارات وحدة |
+| `frontend/` (SvelteKit 2 + Svelte 5 + Tailwind 3، 11 صفحة) | ✅ منفّذ | البناء مُتحقَّق منه + نهاية-لنهاية |
+| `demo` (9 ثنائيات عرض + اختبارات دخان) | ✅ يعمل | نهاية-لنهاية مُتحقَّق منها |
+| أكواد AI (الجزء 11) | ✅ محجوزة (مرفوضة عند الإرسال) | لا ينطبق |
 
-**Total: 209 Rust tests passing + SvelteKit build verified + full-stack E2E + persistence demo.**
+**الإجمالي: 440+ اختبار Rust ناجح + بناء SvelteKit مُتحقَّق منه + نهاية-لنهاية كامل + عرض استمرارية.**
 
-## Quick Start
+## البدء السريع
 
-### Prerequisites
+### المتطلبات الأساسية
 
-- Rust 1.75+ (tested with 1.96)
+- Rust 1.75+ (تم الاختبار مع 1.96)
 - Linux / macOS / Windows
 
-### Build
+### البناء
 
 ```bash
 cargo build --release --workspace
 ```
 
-### Run the end-to-end demos
+### تشغيل العروض التوضيحية من نهاية إلى نهاية
 
-#### Demo 1: Raw NXP (protocol-level PING/PONG)
+#### العرض 1: NXP الخام (PING/PONG على مستوى البروتوكول)
 
-Terminal 1 — start the NXP server:
+الطرفية 1 — ابدأ خادم NXP:
 ```bash
 ./target/release/nxp-server 127.0.0.1:4433
 ```
 
-Terminal 2 — run the NXP client:
+الطرفية 2 — شغّل عميل NXP:
 ```bash
 ./target/release/nxp-client 127.0.0.1:4433
 ```
 
-Expected output (client):
+المخرجات المتوقعة (العميل):
 ```
 INFO connecting to 127.0.0.1:4433
 INFO connected
@@ -74,349 +74,347 @@ INFO PONG received: opcode=Opcode(0x0004:pong) stream=1 req=1 payload=21B
 server echoed: ping@1782844130481396
 ```
 
-#### Demo 2: Nexora Core (full kernel with subsystems)
+#### العرض 2: Nexora Core (النواة الكاملة مع الأنظمة الفرعية)
 
-Terminal 1 — start the Core:
+الطرفية 1 — ابدأ النواة:
 ```bash
 ./target/release/nexora-core-demo 127.0.0.1:4433
 ```
 
-Terminal 2 — send a PING through the Core:
+الطرفية 2 — أرسل PING عبر النواة:
 ```bash
 ./target/release/nxp ping 127.0.0.1:4433
 ```
 
-The Core server will log every received frame and dispatch it to the
-appropriate subsystem (modules, registry, events, permissions, etc.).
+سيسجّل خادم النواة كل إطار مستلم ويوجّهه إلى النظام الفرعي المناسب
+(الوحدات، السجل، الأحداث، الصلاحيات، إلخ).
 
-#### Demo 3: Core smoke test (all subsystems end-to-end)
+#### العرض 3: اختبار دخان النواة (جميع الأنظمة الفرعية نهاية-لنهاية)
 
 ```bash
 ./target/release/core-smoke-test
 ```
 
-This exercises every Core subsystem without needing a network: PING,
-PUBLISH_EVENT, EXECUTE_COMMAND (module install + enable), REPLAY_EVENTS
-(returns 3 events including the lifecycle events auto-published by the
-Module Manager), permission denial, and AI opcode rejection.
+يختبر هذا كل نظام فرعي في النواة دون الحاجة لشبكة: PING،
+PUBLISH_EVENT، EXECUTE_COMMAND (تثبيت وحدة + تفعيل)، REPLAY_EVENTS
+(يُرجع 3 أحداث بما فيها أحداث دورة الحياة المنشورة تلقائياً بواسطة
+مدير الوحدات)، رفض الصلاحيات، ورفض أكواد AI.
 
-#### Demo 4: Nexora Auth server
+#### العرض 4: خادم مصادقة Nexora
 
-Terminal 1 — start the Auth service (pre-creates admin + viewer users):
+الطرفية 1 — ابدأ خدمة المصادقة (تنشئ مسبقاً مستخدمي admin + viewer):
 ```bash
 ./target/release/auth-demo 127.0.0.1:4434
 ```
 
-The server listens for AUTH_LOGIN, AUTH_LOGOUT, AUTH_REFRESH NXP frames.
-Use the Rust smoke test to exercise the full flow:
+يستمع الخادم لإطارات NXP من نوع AUTH_LOGIN، AUTH_LOGOUT، AUTH_REFRESH.
+استخدم اختبار الدخان Rust لممارسة التدفق الكامل:
 
 ```bash
 ./target/release/auth-smoke-test
 ```
 
-This runs 8 scenarios: create user, login success, login wrong password,
-refresh, old-token-revoked, logout, token-revoked-after-logout,
-events-emitted (verifies user.created + user.logged_in + user.logged_out).
+يشغّل هذا 8 سيناريوهات: إنشاء مستخدم، نجاح تسجيل الدخول، كلمة مرور
+خاطئة، تحديث، إبطال الرمز القديم، تسجيل الخروج، إبطال الرمز بعد الخروج،
+الأحداث المنبعثة (يتحقق من user.created + user.logged_in + user.logged_out).
 
-#### Demo 5: Nexora API Gateway (HTTP)
+#### العرض 5: بوابة Nexora API (HTTP)
 
-Terminal 1 — start the HTTP gateway (the only HTTP surface of the platform):
+الطرفية 1 — ابدأ بوابة HTTP (السطح HTTP الوحيد للمنصة):
 ```bash
 ./target/release/gateway-demo 127.0.0.1:8080
 ```
 
-Terminal 2 — exercise the full HTTP flow with curl:
+الطرفية 2 — مارس التدفق HTTP الكامل بـ curl:
 ```bash
-# Health check (no auth)
+# فحص الصحة (بدون مصادقة)
 curl http://127.0.0.1:8080/api/health
 
-# OpenAPI spec
+# مواصفات OpenAPI
 curl http://127.0.0.1:8080/api/openapi.json | python3 -m json.tool
 
-# Login (correct credentials → token)
+# تسجيل الدخول (بيانات صحيحة ← رمز)
 TOKEN=$(curl -s -X POST http://127.0.0.1:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin123"}' \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
-echo "Got token: ${TOKEN:0:40}..."
+echo "الرمز المُحصَّل: ${TOKEN:0:40}..."
 
-# Login (wrong password → 401)
+# تسجيل الدخول (كلمة مرور خاطئة ← 401)
 curl -s -X POST http://127.0.0.1:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"WRONG"}'
 
-# Protected route WITHOUT token → 401 "missing Bearer token"
+# مسار محمي بدون رمز ← 401 "missing Bearer token"
 curl -s -X POST http://127.0.0.1:8080/api/core/ping
 
-# Protected route WITH token → {"pong": true}
+# مسار محمي مع رمز ← {"pong": true}
 curl -s -X POST http://127.0.0.1:8080/api/core/ping \
   -H "Authorization: Bearer $TOKEN"
 
-# Publish an event
+# نشر حدث
 curl -s -X POST http://127.0.0.1:8080/api/core/events \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"test.event","payload":"hello from curl"}'
 
-# Replay events (returns 4 events: 2x user.created + user.logged_in + test.event)
+# إعادة تشغيل الأحداث (يُرجع 4 أحداث: 2x user.created + user.logged_in + test.event)
 curl -s "http://127.0.0.1:8080/api/core/events?from_id=0" \
   -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+
+# GraphQL (استعلام الصحة)
+curl -s -X POST http://127.0.0.1:8080/api/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ health { healthy eventsPublished } }"}'
+
+# الإشعارات (إنشاء إشعار داخل التطبيق)
+curl -s -X POST http://127.0.0.1:8080/api/notifications \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"admin","title":"مرحباً","body":"أهلاً بك في Nexora"}'
 ```
 
-#### Demo 6: Nexora SvelteKit Frontend (Full Stack)
+#### العرض 6: واجهة Nexora SvelteKit الأمامية (مكدس كامل)
 
-Terminal 1 — start the gateway:
+الطرفية 1 — ابدأ البوابة:
 ```bash
 ./target/release/gateway-demo 127.0.0.1:8080
 ```
 
-Terminal 2 — start the SvelteKit dev server:
+الطرفية 2 — ابدأ خادم تطوير SvelteKit:
 ```bash
 cd frontend
 npm install
 npm run dev -- --host 0.0.0.0 --port 3000
 ```
 
-Terminal 3 (or browser) — open `http://localhost:3000`:
-- You'll be redirected to `/login`
-- Sign in with `admin` / `admin123`
-- The dashboard shows modules count, latest event ID, overall health
-- Click "Send PING" → verifies the full stack works
-- Publish events, view the event log, check health
+الطرفية 3 (أو المتصفح) — افتح `http://localhost:3000`:
+- ستتم إعادة توجيهك إلى `/login`
+- سجّل الدخول بـ `admin` / `admin123`
+- لوحة التحكم تعرض عدد الوحدات، آخر معرف حدث، الصحة الإجمالية
+- اضغط "Send PING" ← يتحقق من عمل المكدس الكامل
+- انشر الأحداث، اعرض سجل الأحداث، تحقق من الصحة
 
-The frontend talks to the gateway via Vite's dev proxy (`/api/*` → `127.0.0.1:8080`).
-In production, the gateway serves the built frontend assets directly.
+تتحدث الواجهة الأمامية إلى البوابة عبر وكيل تطوير Vite
+(`/api/*` ← `127.0.0.1:8080`). في الإنتاج، تخدم البوابة أصول الواجهة
+المبنية مباشرة.
 
-### CLI
+### سطر الأوامر
 
 ```bash
-# Print protocol version and constants
+# اطبع نسخة البروتوكول والثوابت
 ./target/release/nxp version
 
-# Generate a fresh Ed25519 identity keypair
+# أنشئ زوج مفاتيح هوية Ed25519 جديداً
 ./target/release/nxp keygen
 
-# Connect to a server and send a PING
+# اتصل بخادم وأرسل PING
 ./target/release/nxp ping 127.0.0.1:4433
 
-# Read frames from a binary capture file
+# اقرأ الإطارات من ملف التقاط ثنائي
 ./target/release/nxp sniff capture.bin
 ```
 
-## Architecture
+## البنية المعمارية
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                  APPLICATION LAYER (L5)                          │
-│      Marketplace · Billing · Auth · ERP · CRM · AI (deferred)   │
+│                  طبقة التطبيقات (L5)                              │
+│      المتجر · الفوترة · المصادقة · ERP · CRM · AI (مؤجّل)        │
 └─────────────────────────────────────────────────────────────────┘
                               ▲ ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│              PAYLOAD LAYER (L4) — nxp-payload                   │
-│       MessagePack (default) · CBOR (via COMPACT flag)           │
+│              طبقة الحمولة (L4) — nxp-payload                     │
+│       MessagePack (افتراضي) · CBOR (عبر علم COMPACT)            │
 └─────────────────────────────────────────────────────────────────┘
                               ▲ ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│         COMMAND & FRAME LAYER (L3) — nxp-core                   │
-│      43-byte fixed header · 16-bit opcodes · 16-bit flags       │
+│         طبقة الأوامر والإطارات (L3) — nxp-core                   │
+│      ترويسة ثابتة 43 بايت · أكواد 16-بت · أعلام 16-بت           │
 └─────────────────────────────────────────────────────────────────┘
                               ▲ ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│          SESSION LAYER (L2) — nxp-session + nxp-security        │
-│  X25519 ECDHE · HKDF-SHA256 · ChaCha20-Poly1305 AEAD · replay  │
-│  window · Ed25519 signatures · heartbeats · session rotation    │
+│          طبقة الجلسة (L2) — nxp-session + nxp-security          │
+│  X25519 ECDHE · HKDF-SHA256 · ChaCha20-Poly1305 AEAD · نافذة    │
+│  منع إعادة التشغيل · توقيعات Ed25519 · نبضات القلب · تدوير الجلسة│
 └─────────────────────────────────────────────────────────────────┘
                               ▲ ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│           TRANSPORT LAYER (L1) — nxp-transport                  │
-│             QUIC (RFC 9000) via `quinn` + TLS 1.3               │
+│           طبقة النقل (L1) — nxp-transport                        │
+│             QUIC (RFC 9000) عبر `quinn` + TLS 1.3               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Workspace Layout
+## تخطيط مساحة العمل
 
 ```
 nexora/
-├── Cargo.toml                  # Rust workspace manifest
+├── Cargo.toml                  # بيان مساحة عمل Rust
 ├── docs/
-│   ├── NXP-RFC-v1.md           # NXP protocol RFC (Part 3)
-│   ├── CORE-RFC-v1.md          # Nexora Core RFC (Part 4)
-│   ├── AUTH-RFC-v1.md          # Nexora Auth RFC (Part 9)
-│   ├── GATEWAY-RFC-v1.md       # API Gateway RFC (Part 6)
-│   └── FRONTEND-RFC-v1.md      # SvelteKit Frontend RFC (Part 7)
+│   ├── NXP-RFC-v1.md           # RFC بروتوكول NXP (الجزء 3)
+│   ├── CORE-RFC-v1.md          # RFC Nexora Core (الجزء 4)
+│   ├── AUTH-RFC-v1.md          # RFC مصادقة Nexora (الجزء 9)
+│   ├── GATEWAY-RFC-v1.md       # RFC بوابة API (الجزء 6)
+│   └── FRONTEND-RFC-v1.md      # RFC واجهة SvelteKit (الجزء 7)
 ├── crates/
-│   ├── nxp-core/               # NXP: frames, opcodes, errors, version
-│   ├── nxp-payload/            # NXP: MessagePack / CBOR serialization
-│   ├── nxp-security/           # NXP: AEAD, Ed25519, X25519, replay window
-│   ├── nxp-session/            # NXP: HELLO handshake, session manager, heartbeats
-│   ├── nxp-transport/          # NXP: QUIC transport (quinn)
-│   ├── nexora-core/            # Core: 8 subsystems + NXP handler
-│   ├── nexora-auth/            # Auth: user mgmt, sessions, tokens
-│   ├── nexora-gateway/         # HTTP ↔ NXP translation (Part 6)
-│   └── nxp-cli/                # `nxp` command-line tool
-├── demo/                       # 7 demo binaries + smoke tests
-│   └── src/
-│       ├── server.rs / client.rs        # NXP demos
-│       ├── core_demo.rs / core_smoke_test.rs
-│       ├── auth_demo.rs / auth_smoke_test.rs
-│       └── gateway_demo.rs
+│   ├── nxp-core/               # NXP: الإطارات، الأكواد، الأخطاء، النسخة
+│   ├── nxp-payload/            # NXP: تسلسل MessagePack / CBOR
+│   ├── nxp-security/           # NXP: AEAD، Ed25519، X25519، نافذة إعادة التشغيل
+│   ├── nxp-session/            # NXP: مصافحة HELLO، مدير الجلسة، نبضات القلب
+│   ├── nxp-transport/          # NXP: نقل QUIC (quinn)
+│   ├── nexora-core/            # النواة: 8 أنظمة فرعية + معالج NXP
+│   ├── nexora-auth/            # المصادقة: إدارة المستخدمين، الجلسات، الرموز
+│   ├── nexora-gateway/         # ترجمة HTTP ↔ NXP (الجزء 6)
+│   ├── nexora-marketplace/     # المتجر: حزم، أمان، خط أنابيب تثبيت
+│   ├── nexora-billing/         # الفوترة: فواتير، مدفوعات، اشتراكات
+│   ├── nexora-workflow/        # محرك سير العمل
+│   ├── nexora-cluster/         # مدير العنقود متعدد العقد
+│   ├── nexora-storage/         # PostgreSQL (أساسي) + SQLite (طرفي)
+│   ├── nexora-notifications/   # إشعارات متعددة القنوات (بريد، دفع ويب، تطبيق)
+│   ├── nexora-graphql/         # نقطة نهاية GraphQL + Playground
+│   ├── nexora-wasm-sandbox/    # صندوق WASM آمن للمكونات
+│   ├── nexora-benchmarks/      # 9 مجموعات قياس أداء
+│   └── nxp-cli/                # أداة سطر أوامر `nxp`
+├── demo/                       # 9 ثنائيات عرض + اختبارات دخان
 └── frontend/                   # SvelteKit 2 + Svelte 5 + Tailwind 3
-    ├── package.json
-    ├── svelte.config.js
-    ├── vite.config.ts          # /api proxy → gateway:8080
-    ├── tailwind.config.js      # Nexora dark palette
-    └── src/
-        ├── app.html / app.css
-        ├── lib/
-        │   ├── api/gateway.ts  # Typed fetch client with Bearer token
-        │   ├── stores/session.ts
-        │   └── components/     # Layout, StatCard
-        └── routes/
-            ├── +layout.svelte / +layout.ts  # Auth guard
-            ├── +page.svelte                 # Dashboard
-            ├── login/ / logout/
-            ├── events/ / modules/ / health/
 ```
 
-## Nexora Core Subsystems
+## الأنظمة الفرعية لـ Nexora Core
 
-| Subsystem | Purpose | Key APIs |
-|-----------|---------|----------|
-| Module Manager | Lifecycle of platform modules | `install`, `enable`, `pause`, `resume`, `uninstall` |
-| Service Registry | Logical-name → instance lookup | `register`, `lookup`, `pick_one` |
-| Event Bus | Source of truth (immutable, replayable) | `publish`, `subscribe`, `replay`, `replay_filtered` |
-| Permission Engine | RBAC + ABAC with wildcard patterns | `register_principal`, `assign_role`, `check`, `is_allowed` |
-| Plugin Manager | Signed, sandboxed extensions | `register`, `verify`, `activate`, `stop`, `remove` |
-| Config Manager | Dynamic key-value config | `set`, `get`, `reload`, `snapshot` |
-| Secret Manager | Versioned, audited secrets | `put`, `get`, `rollback`, `delete` |
-| Health Monitor | Aggregate subsystem status | `report`, `status`, `is_healthy`, `snapshot` |
-| Core NXP Handler | Dispatches NXP opcodes to subsystems | `dispatch(opcode, payload, encoding)` |
+| النظام الفرعي | الغرض | واجهات برمجة التطبيقات الرئيسية |
+|---------------|--------|----------------------------------|
+| مدير الوحدات | دورة حياة وحدات المنصة | `install`، `enable`، `pause`، `resume`، `uninstall` |
+| سجل الخدمات | البحث عن اسم منطقي ← نسخة | `register`، `lookup`، `pick_one` |
+| ناقل الأحداث | مصدر الحقيقة (غير قابل للتغيير، قابل لإعادة التشغيل) | `publish`، `subscribe`، `replay`، `replay_filtered` |
+| محرك الصلاحيات | RBAC + ABAC مع أنماط البطاقة البرية | `register_principal`، `assign_role`، `check`، `is_allowed` |
+| مدير المكونات | امتدادات موقّعة، في صندوق حماية | `register`، `verify`، `activate`، `stop`، `remove` |
+| مدير التكوين | تكوين ديناميكي مفتاح-قيمة | `set`، `get`، `reload`، `snapshot` |
+| مدير الأسرار | أسرار موصعة بالنسخ، مدققة | `put`، `get`، `rollback`، `delete` |
+| مراقب الصحة | الحالة التجميعية للأنظمة الفرعية | `report`، `status`، `is_healthy`، `snapshot` |
+| معالج NXP للنواة | يوجّه أكواد NXP إلى الأنظمة الفرعية | `dispatch(opcode, payload, encoding)` |
 
-## Nexora Auth Service
+## خدمة مصادقة Nexora
 
-The first production service built on Nexora Core. Demonstrates the
-canonical pattern for building a Nexora service: owns its data, integrates
-with Core subsystems, speaks NXP natively, emits events on every state
-change.
+أول خدمة إنتاجية مبنية على Nexora Core. توضّح النمط القياسي لبناء
+خدمة Nexora: تمتلك بياناتها، تتكامل مع أنظمة Core الفرعية، تتحدث NXP
+أصلياً، تنبعث منها أحداث عند كل تغيير حالة.
 
-| Subsystem | Purpose | Key APIs |
-|-----------|---------|----------|
-| Password | Argon2id hashing | `hash_password`, `verify_password` |
-| UserStore | User CRUD + auto PermissionEngine registration | `create`, `verify`, `record_login`, `delete` |
-| SessionStore | Active session tracking (1h TTL) | `create`, `revoke`, `revoke_all_for_user`, `touch` |
-| TokenVerifier | Ed25519-signed, versioned, expiring tokens | `issue`, `verify`, `revoke`, `refresh` |
-| AuthHandler | NXP opcode dispatch (AUTH_LOGIN/LOGOUT/REFRESH) | `dispatch(opcode, payload, encoding)` |
+| النظام الفرعي | الغرض | واجهات برمجة التطبيقات الرئيسية |
+|---------------|--------|----------------------------------|
+| كلمة المرور | تجزئة Argon2id | `hash_password`، `verify_password` |
+| مخزن المستخدمين | CRUD مستخدم + تسجيل تلقائي في محرك الصلاحيات | `create`، `verify`، `record_login`، `delete` |
+| مخزن الجلسات | تتبع الجلسات النشطة (TTL ساعة واحدة) | `create`، `revoke`، `revoke_all_for_user`، `touch` |
+| مدقق الرموز | رموز Ed25519 موقّعة، موسومة بالنسخة، منتهية الصلاحية | `issue`، `verify`، `revoke`، `refresh` |
+| معالج المصادقة | توجيه أكواد NXP (AUTH_LOGIN/LOGOUT/REFRESH) | `dispatch(opcode, payload, encoding)` |
 
-## Nexora API Gateway
+## بوابة Nexora API
 
-The **only HTTP surface** of the platform (per Part 6). Translates every
-HTTP request to an NXP-style dispatch and back. JSON externally,
-MessagePack internally (per Law 15).
+**السطح HTTP الوحيد** للمنصة (حسب الجزء 6). تترجم كل طلب HTTP إلى
+إرسال بأسلوب NXP ذهاباً وإياباً. JSON خارجياً، MessagePack داخلياً
+(حسب القانون 15).
 
-| Route | Auth | NXP Opcode | Description |
-|-------|------|------------|-------------|
-| `GET /api/health` | – | – | Gateway liveness |
-| `GET /api/openapi.json` | – | – | OpenAPI 3.0 spec |
-| `POST /api/auth/login` | – | `AUTH_LOGIN` | Exchange credentials for token |
-| `POST /api/auth/refresh` | – | `AUTH_REFRESH` | Rotate token |
-| `POST /api/auth/logout` | Bearer | `AUTH_LOGOUT` | Revoke token |
-| `POST /api/core/ping` | Bearer | `PING` | Round-trip through Core |
-| `GET /api/core/events` | Bearer | `REPLAY_EVENTS` | Replay events (query: from_id, filter) |
-| `GET /api/core/events/stream` | Bearer* | – (SSE) | **Live event stream** (Server-Sent Events) |
-| `POST /api/core/events` | Bearer | `PUBLISH_EVENT` | Publish event |
-| `GET /api/core/modules` | Bearer | – (direct) | List modules |
-| `GET /api/core/modules/:id` | Bearer | – (direct) | Get one module |
-| `GET /api/core/health` | Bearer | – (direct) | Aggregate health |
+| المسار | المصادقة | كود NXP | الوصف |
+|--------|----------|---------|--------|
+| `GET /api/health` | – | – | فحص حياة البوابة |
+| `GET /api/openapi.json` | – | – | مواصفات OpenAPI 3.0 |
+| `POST /api/auth/login` | – | `AUTH_LOGIN` | استبدل البيانات برمز |
+| `POST /api/auth/refresh` | – | `AUTH_REFRESH` | دورّر الرمز |
+| `POST /api/auth/logout` | Bearer | `AUTH_LOGOUT` | أبطِل الرمز |
+| `POST /api/core/ping` | Bearer | `PING` | ذهاب-إياب عبر النواة |
+| `GET /api/core/events` | Bearer | `REPLAY_EVENTS` | أعد تشغيل الأحداث (استعلام: from_id، filter) |
+| `GET /api/core/events/stream` | Bearer* | – (SSE) | **بث أحداث مباشر** (Server-Sent Events) |
+| `POST /api/core/events` | Bearer | `PUBLISH_EVENT` | انشر حدثاً |
+| `GET /api/notifications` | Bearer | – (مباشر) | قائمة إشعارات داخل التطبيق |
+| `POST /api/notifications` | Bearer | – (مباشر) | أرسل إشعاراً |
+| `POST /api/graphql` | – | – | نفّذ استعلام/طفر GraphQL |
+| `GET /api/graphql` | – | – | صفحة GraphQL Playground |
 
-> **\*Bearer\*** on `/api/core/events/stream`: SSE uses `EventSource` which
-> cannot set custom headers. The gateway accepts `?token=<urlencoded>` as a
-> fallback for this route only. The token is still Ed25519-signed and
-> verified normally.
+## الواجهة الأمامية Nexora (SvelteKit)
 
-## Nexora Frontend (SvelteKit)
+**واجهة تشغيلية حية** لـ Nexora Core (حسب الجزء 7). مبنية بـ SvelteKit 2
++ Svelte 5 + TypeScript صارم + TailwindCSS 3. تصميم داكن أولاً مستوحى من
+Linear/Vercel. كل الإجراءات هي أوامر NXP عبر البوابة.
 
-A **Live Operational Interface** for Nexora Core (per Part 7). Built with
-SvelteKit 2 + Svelte 5 + TypeScript strict + TailwindCSS 3. Dark-first
-design inspired by Linear/Vercel. All actions are NXP commands via the
-Gateway.
+| الصفحة | الوصف |
+|--------|--------|
+| `/login` | نموذج اسم المستخدم + كلمة المرور ← يخزّن رمز Ed25519 في localStorage |
+| `/` (لوحة التحكم) | شبكة إحصائيات + لوحة PING + نموذج نشر حدث + الأحداث الأخيرة |
+| `/events` | سجل أحداث كامل مع فلتر بادئة الاسم |
+| `/modules` | شبكة الوحدات المثبتة مع شارات الحالة |
+| `/health` | شبكة صحة الأنظمة الفرعية مع شارات الحالة |
+| `/logout` | يبطل الرمز ويعيد التوجيه إلى `/login` |
 
-| Page | Description |
-|------|-------------|
-| `/login` | Username + password form → stores Ed25519 token in localStorage |
-| `/` (Dashboard) | Stats grid + PING panel + Publish Event form + Recent Events |
-| `/events` | Full event log with name-prefix filter |
-| `/modules` | Grid of installed modules with state badges |
-| `/health` | Subsystem health grid with status badges |
-| `/logout` | Revokes token and redirects to `/login` |
+تدفق المصادقة: رمز Bearer في ترويسة `Authorization`، يتم التحقق منه
+بواسطة برمجيات البوابة الوسيطة على كل مسار محمي. عند 401، تعيد الواجهة
+الأمامية التوجيه تلقائياً إلى `/login`.
 
-Auth flow: Bearer token in `Authorization` header, validated by Gateway
-middleware on every protected route. On 401, frontend auto-redirects to
-`/login`.
+## تنسيق الإطار
 
-## Frame Format
+ترويسة ثابتة 43 بايت + حمولة متغيرة + وسم مصادقة 16 بايت + توقيع
+Ed25519 اختياري 64 بايت. التخطيط الكامل في [`docs/NXP-RFC-v1.md`](docs/NXP-RFC-v1.md).
 
-43-byte fixed header + variable payload + 16-byte auth tag + optional 64-byte
-Ed25519 signature. Full layout in [`docs/NXP-RFC-v1.md`](docs/NXP-RFC-v1.md).
+## نموذج الأمان
 
-## Security Model
+- **السرية + النزاهة:** ChaCha20-Poly1305 AEAD على كل إطار
+- **المصادقة:** X25519 ECDHE لإعداد الجلسة، Ed25519 للهوية
+- **الحماية من إعادة التشغيل:** نافذة منزلقة 1024 مدخل لكل اتجاه جلسة
+- **السرية الأمامية:** مفاتيح X25519 مؤقتة، تُصفَّر بعد الاشتقاق
+- **مقاومة التلاعب:** حقول الترويسة مرتبطة بالنص المشفّر كـ AAD
+- **الثقة الصفرية:** لا ثقة ضمنية — كل إطار يُتحقَّق منه بشكل مستقل
 
-- **Confidentiality + Integrity:** ChaCha20-Poly1305 AEAD on every frame
-- **Authentication:** X25519 ECDHE for session setup, Ed25519 for identity
-- **Replay protection:** 1024-entry sliding window per session direction
-- **Forward secrecy:** Ephemeral X25519 keys, zeroized after derivation
-- **Tamper resistance:** Header fields bound to ciphertext as AAD
-- **Zero Trust:** No implicit trust — every frame verified independently
+## خصائص الأداء
 
-## Performance Characteristics
+| العملية | المقيس (بناء الإصدار) |
+|---------|------------------------|
+| ترميز الإطار (1 KiB) | أقل من ميكروثانية |
+| فك ترميز الإطار (1 KiB) | أقل من ميكروثانية |
+| تشفير AEAD (1 KiB) | ~1 ميكروثانية |
+| فك تشفير AEAD (1 KiB) | ~1 ميكروثانية |
+| توقيع Ed25519 | ~50 ميكروثانية |
+| التحقق Ed25519 | ~150 ميكروثانية |
+| مصافحة QUIC (باردة) | ~5 مللي ثانية محلياً |
+| ذهاب-إياب PING→PONG | < 1 مللي ثانية محلياً |
 
-| Operation | Measured (release build) |
-|-----------|--------------------------|
-| Frame encode (1 KiB) | sub-microsecond |
-| Frame decode (1 KiB) | sub-microsecond |
-| AEAD encrypt (1 KiB) | ~1 μs |
-| AEAD decrypt (1 KiB) | ~1 μs |
-| Ed25519 sign | ~50 μs |
-| Ed25519 verify | ~150 μs |
-| QUIC handshake (cold) | ~5 ms localhost |
-| PING→PONG round trip | < 1 ms localhost |
+## الامتثال لمواصفات Nexora الهندسية
 
-## Compliance with Nexora Engineering Specification
+| جزء المواصفة | الامتثال |
+|--------------|----------|
+| الجزء 1 (الرؤية) | ✅ درجة هندسية، جاهز للإنتاج |
+| الجزء 2 (الدستور) | ✅ Rust فقط، جاهز لـ SvelteKit، التوثيق أولاً، الأمان أولاً، الثقة الصفرية، معياري، المكونات أولاً، API أولاً، يحركه الأحداث، قابل للملاحظة، بميزانية أداء، كفؤ في الذاكرة، تواصل ثنائي، جاهز متعدد المستأجرين، موسوم بالنسخة، جاهز لـ AI (محجوز) |
+| الجزء 3 (NXP) | ✅ كل الطبقات الخمس منفّذة حسب RFC |
+| الجزء 4 (Nexora Core) | ✅ 8 أنظمة فرعية + معالج NXP |
+| الجزء 5 (المتجر) | ✅ 6 أنواع حزم، أمان 5 طبقات، خط أنابيب تثبيت 13 خطوة، SemVer، تبعيات غير دورية، 5 نماذج فوترة، درجات ثقة، 5 مستويات رؤية |
+| الجزء 6 (بنية الخلفية) | ✅ موضّحة بخدمة المصادقة + بوابة API |
+| الجزء 7 (الواجهة الأمامية) | ✅ SvelteKit 2 + Svelte 5 + TypeScript صارم + TailwindCSS 3 |
+| الجزء 8 (البيانات والأحداث) | ✅ مصدر الأحداث عبر EventBus + **مخزن PostgreSQL/SQLite الدائم** |
+| الجزء 9 (الأمان والمصادقة) | ✅ كلمات مرور Argon2id، رموز Ed25519 موقّعة، إبطال قائم على النسخة |
+| الجزء 10 (الموارد المنخفضة) | ✅ ثنائي واحد، تبعيات ضئيلة، SQLite مضمّن |
+| الجزء 11 (AI مؤجّل) | ✅ الأكواد محجوزة، مرفوضة عند الإرسال |
+| الجزء 13 (الملاحظة) | ✅ تسجيل منظم عبر `tracing`، معرفات التتبع في الإطارات |
 
-| Spec Part | Compliance |
-|-----------|------------|
-| Part 1 (Vision) | ✅ Engineering-grade, production-ready |
-| Part 2 (Constitution) | ✅ Rust only, SvelteKit-ready, doc-first, security-first, zero-trust, modular, plugin-first, API-first, event-driven, observable, performance-budgeted, memory-efficient, binary-comm, multi-tenant ready, versioned, AI-ready (reserved) |
-| Part 3 (NXP) | ✅ All 5 layers implemented per RFC |
-| Part 4 (Nexora Core) | ✅ 8 subsystems + NXP handler; cluster manager + update engine pending v0.2 |
-| Part 5 (Marketplace) | ✅ 6 package types, 5-layer security, 13-step install pipeline, SemVer, acyclic deps, 5 billing models, trust scores, 5 visibility levels |
-| Part 6 (Backend Architecture) | ✅ Demonstrated by Auth service (DB-per-service, event-driven, NXP-native) + API Gateway (only HTTP surface, JSON↔MsgPack translation, Bearer token middleware) |
-| Part 7 (Frontend) | ✅ SvelteKit 2 + Svelte 5 + TypeScript strict + TailwindCSS 3; dark-first design; thin real-time projection of Core; auth guard; Bearer token; 7 pages; **SSE live event streaming** |
-| Part 8 (Data & Events) | ✅ Event sourcing via EventBus + **SQLite-backed durable EventStore** (source of truth survives restarts) |
-| Part 9 (Security & Auth) | ✅ Argon2id passwords, Ed25519-signed tokens, version-based revocation, Auth NXP handler, Bearer token middleware end-to-end |
-| Part 10 (Low-resource) | ✅ Single-binary, minimal deps, no heavy sidecars, **SQLite embedded** (no external DB server) |
-| Part 11 (AI Deferred) | ✅ Opcodes reserved, no runtime, no dependency, rejected at dispatch |
-| Part 13 (Observability) | ✅ Structured logging via `tracing`, trace IDs in frames, health monitoring |
+## خارطة الطريق (بعد v0.1)
 
-## Roadmap (Post-v0.1)
+- [ ] ضغط zstd للحمولات الكبيرة (العلم محجوز)
+- [ ] مسار Cap'n Proto للنسخ الصفري للتدفقات عالية الإنتاجية
+- [ ] استئناف جلسة 0-RTT عبر المناطق
+- [ ] محلل حزم `nxp sniff` (CLI موجود، المحلل الكامل معلّق)
+- [ ] مُعيد تشغيل تدفق الأحداث `nxp replay`
+- [ ] harness إنتاجية `nxp benchmark`
+- [ ] نظام ائتمان ضغط عكسي لكل إطار
+- [ ] تنفيذ `Signer` مدعوم بـ HSM
+- [ ] سجل القدرات للأكواد المعرفة من قبل التطبيق (0xC000–0xFFFF)
+- [ ] محول SMS (Twilio) لإشعارات الهاتف
+- [ ] محول Slack لإشعارات الفريق
+- [ ] اشتراكات GraphQL حية عبر WebSocket
 
-- [ ] zstd compression for large payloads (flag reserved)
-- [ ] Cap'n Proto zero-copy path for high-throughput streams
-- [ ] 0-RTT session resumption across regions
-- [ ] `nxp sniff` packet analyzer (CLI exists, full analyzer pending)
-- [ ] `nxp replay` event-stream replayer
-- [ ] `nxp benchmark` throughput harness
-- [ ] Per-frame backpressure credit system
-- [ ] HSM-backed `Signer` implementation
-- [ ] Capabilities registry for application-defined opcodes (0xC000–0xFFFF)
+## الترخيص
 
-## License
+مرخّص مزدوج تحت MIT أو Apache-2.0، بما يتوافق مع منظومة Rust.
 
-Dual-licensed under MIT OR Apache-2.0, consistent with the Rust ecosystem.
+## المراجع
 
-## Reference
-
-- Full specification: [`docs/NXP-RFC-v1.md`](docs/NXP-RFC-v1.md)
-- Nexora Engineering Specification, Parts 1–15 (internal)
-- RFC 9000 (QUIC), RFC 9001 (QUIC+TLS), RFC 8446 (TLS 1.3)
-- RFC 7748 (X25519), RFC 8032 (Ed25519), RFC 8439 (ChaCha20-Poly1305)
+- المواصفة الكاملة: [`docs/NXP-RFC-v1.md`](docs/NXP-RFC-v1.md)
+- مواصفة Nexora الهندسية، الأجزاء 1–15 (داخلية)
+- RFC 9000 (QUIC)، RFC 9001 (QUIC+TLS)، RFC 8446 (TLS 1.3)
+- RFC 7748 (X25519)، RFC 8032 (Ed25519)، RFC 8439 (ChaCha20-Poly1305)
 - RFC 5869 (HKDF)

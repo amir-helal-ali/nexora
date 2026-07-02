@@ -1,7 +1,7 @@
-//! NXP — Nexora Exchange Protocol
+//! NXP — بروتوكول Nexora للتبادل
 //!
-//! Core protocol primitives: frames, opcodes, flags, errors.
-//! See `docs/NXP-RFC-v1.md` for the full specification.
+//! بدائيات البروتوكول الأساسية: الإطارات، الأكواد، الأعلام، الأخطاء.
+//! انظر `docs/NXP-RFC-v1.md` للمواصفة الكاملة.
 
 #![forbid(unsafe_code)]
 #![deny(rust_2021_compatibility)]

@@ -1,18 +1,18 @@
-//! Nexora Auth/Identity Service.
+//! خدمة Nexora للمصادقة/الهوية.
 //!
-//! The first production service built on Nexora Core. Provides:
-//! - User management (create, get, list, delete) with Argon2 password hashing
-//! - Session tokens (Ed25519-signed, expiry, refresh)
-//! - Auth NXP handler dispatching AUTH_LOGIN / AUTH_LOGOUT / AUTH_REFRESH
-//! - Enterprise SSO via OIDC + SAML 2.0 (behind `sso` feature flag)
+//! أول خدمة إنتاجية مبنية على Nexora Core. توفر:
+//! - إدارة المستخدمين (إنشاء، جلب، قائمة، حذف) مع تجزئة Argon2 لكلمات المرور
+//! - رموز الجلسة (Ed25519 موقّعة، انتهاء صلاحية، تحديث)
+//! - معالج NXP للمصادقة يوجّه AUTH_LOGIN / AUTH_LOGOUT / AUTH_REFRESH
+//! - SSO مؤسسي عبر OIDC + SAML 2.0 (خلف علم ميزة `sso`)
 //!
-//! # Integration with Core
+//! # التكامل مع النواة
 //!
-//! - User creation auto-registers a Principal in the Permission Engine
-//! - All state changes emit events on the Event Bus (`user.created`,
-//!   `user.deleted`, `user.logged_in`, `user.logged_out`)
-//! - Sessions are versioned: token refresh invalidates the previous token
-//! - Tokens are signed with the service's long-term Ed25519 identity key
+//! - إنشاء المستخدم يسجّل تلقائياً كياناً في محرك الصلاحيات
+//! - كل تغييرات الحالة تنبعث كأحداث على ناقل الأحداث (`user.created`،
+//!   `user.deleted`، `user.logged_in`، `user.logged_out`)
+//! - الجلسات موسومة بالنسخة: تحديث الرمز يبطل الرمز السابق
+//! - الرموز موقّعة بمفتاح هوية Ed25519 طويل المدى للخدمة
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]

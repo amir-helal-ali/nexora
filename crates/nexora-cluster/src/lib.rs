@@ -1,14 +1,14 @@
-//! Nexora Cluster Manager — multi-node coordination.
+//! مدير عنقود Nexora — تنسيق متعدد العقد.
 //!
-//! See Nexora Engineering Specification, Part 4 (CLUSTER MANAGER) and
-//! Part 14 (GLOBAL DEPLOYMENT & EDGE NETWORK ARCHITECTURE).
+//! انظر مواصفة Nexora الهندسية، الجزء 4 (مدير العنقود) و
+//! الجزء 14 (النشر العالمي ومعماريات شبكة الطرف).
 //!
-//! The Cluster Manager tracks all nodes in a Nexora cluster:
-//! - Node registration + heartbeat
-//! - Node discovery (by region, capability, health)
-//! - Automatic failover detection (missed heartbeats → marked unhealthy)
-//! - Load balancing (priority-weighted node selection)
-//! - Cluster-wide health aggregation
+//! يتعقّب مدير العنقود كل العقد في عنقود Nexora:
+//! - تسجيل العقد + نبض القلب
+//! - اكتشاف العقد (حسب المنطقة، القدرة، الصحة)
+//! - كشف الفشل التلقائي (نبضات ضائعة ← تُعلّم كغير صحية)
+//! - موازنة الحمل (اختيار عقد مرجّح بالأولوية)
+//! - تجميع صحة العنقود
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]

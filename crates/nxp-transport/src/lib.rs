@@ -1,17 +1,16 @@
-//! NXP transport layer.
+//! طبقة نقل NXP.
 //!
-//! See RFC §2.1. NXP runs over QUIC, which provides TLS 1.3, multiplexed
-//! streams, 0-RTT resumption, and connection migration out of the box.
-//! This crate wraps the `quinn` QUIC implementation and provides:
-//! - `NxpServer` — accepts incoming NXP connections
-//! - `NxpClient` — establishes outgoing NXP sessions
-//! - `NxpConnection` — frame-level read/write over a QUIC stream
+//! انظر RFC §2.1. يعمل NXP فوق QUIC، الذي يوفر TLS 1.3، تدفقات متعددة،
+//! استئناف 0-RTT، وهجرة الاتصال خارج الصندوق.
+//! هذه الـ crate تغلّف تطبيق `quinn` QUIC وتوفر:
+//! - `NxpServer` — يقبل اتصالات NXP الواردة
+//! - `NxpClient` — ينشئ جلسات NXP الصادرة
+//! - `NxpConnection` — قراءة/كتابة على مستوى الإطار عبر تدفق QUIC
 //!
-//! The TLS layer is configured for **self-signed certificates by default**,
-//! which is appropriate for internal cluster communication where identity
-//! is established at the NXP session layer (Ed25519 identity keys). For
-//! external ingress, the API Gateway terminates TLS with publicly-trusted
-//! certificates.
+//! طبقة TLS مُهيأة لـ **شهادات ذاتية التوقيع افتراضياً**،
+//! وهو مناسب للتواصل الداخلي للعنقود حيث تُنشأ الهوية في طبقة جلسة NXP
+//! (مفاتيح هوية Ed25519). للدخول الخارجي، تنهي بوابة API TLS بشهادات
+//! موثوقة عامة.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]

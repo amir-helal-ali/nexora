@@ -1,9 +1,9 @@
-//! # Nexora GraphQL Endpoint
+//! # نقطة نهاية Nexora GraphQL
 //!
-//! An alternative to the REST API for clients that need flexible queries.
-//! Built on `async-graphql` + `async-graphql-axum`.
+//! بديل لواجهة REST API للعملاء الذين يحتاجون استعلامات مرنة.
+//! مبنية على `async-graphql` + `async-graphql-axum`.
 //!
-//! ## Schema overview
+//! ## نظرة عامة على المخطط
 //!
 //! ```graphql
 //! type Query {
@@ -29,7 +29,7 @@
 //! }
 //! ```
 //!
-//! ## Usage
+//! ## الاستخدام
 //!
 //! ```no_run
 //! # use nexora_graphql::build_schema;

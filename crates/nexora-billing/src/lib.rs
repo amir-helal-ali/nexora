@@ -1,19 +1,19 @@
-//! Nexora Billing Service — invoices, payments, subscriptions.
+//! خدمة فوترة Nexora — فواتير، مدفوعات، اشتراكات.
 //!
-//! The first revenue-generating module on the platform. Supports the 5
-//! billing models defined in the Marketplace (Part 5):
-//! - One-time purchase
-//! - Subscription (recurring)
-//! - Usage-based (per NXP command / per event)
-//! - Enterprise licensing (custom terms)
-//! - Free
+//! أول وحدة توليد إيرادات في المنصة. تدعم نماذج الفوترة الخمسة المعرفة
+//! في المتجر (الجزء 5):
+//! - شراء لمرة واحدة
+//! - اشتراك (متكرر)
+//! - قائم على الاستخدام (لكل أمر NXP / لكل حدث)
+//! - ترخيص مؤسسي (شروط مخصصة)
+//! - مجاني
 //!
-//! # Integration
+//! # التكامل
 //!
-//! - Reads billing models from package manifests (Marketplace)
-//! - Emits events: invoice.created, payment.completed, subscription.renewed,
+//! - تقرأ نماذج الفوترة من بيانات الحزم (المتجر)
+//! - تنبعث أحداث: invoice.created، payment.completed، subscription.renewed،
 //!   subscription.cancelled
-//! - All state changes are auditable via the Event Bus
+//! - كل تغييرات الحالة قابلة للتدقيق عبر ناقل الأحداث
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]

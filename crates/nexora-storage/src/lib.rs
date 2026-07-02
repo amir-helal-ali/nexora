@@ -1,28 +1,28 @@
-//! Nexora Persistent Storage — PostgreSQL (primary) + SQLite (edge fallback).
+//! تخزين Nexora الدائم — PostgreSQL (أساسي) + SQLite (بديل طرفي).
 //!
-//! # Backends
+//! # الخلفيات
 //!
-//! - **PostgreSQL** (default, primary): production-grade, supports concurrent
-//!   reads/writes, full-text search, JSONB. Use this for any deployment that
-//!   has more than one Core process or expects >100 RPS.
-//! - **SQLite** (edge): embedded, zero-config, single-file. Use this for
-//!   Tier-1 low-resource deployments (Part 10) where running a separate
-//!   PostgreSQL server is not feasible.
+//! - **PostgreSQL** (افتراضي، أساسي): درجة إنتاج، يدعم القراءات/الكتابات
+//!   المتزامنة، البحث بالنص الكامل، JSONB. استخدم هذا لأي نشر لديه أكثر
+//!   من عملية Core واحدة أو يتوقع >100 طلب/ثانية.
+//! - **SQLite** (طرفي): مضمّن، بلا إعداد، ملف واحد. استخدم هذا لعمليات نشر
+//!   Tier-1 منخفضة الموارد (الجزء 10) حيث تشغيل خادم PostgreSQL منفصل
+//!   غير ممكن.
 //!
-//! Both backends implement the same logical schema and the same store
-//! interfaces, so swapping is a config change.
+//! كلتا الخلفيتين تنفّذان نفس المخطط المنطقي ونفس واجهات المخازن،
+//! لذا التبديل هو تغيير تكوين.
 //!
-//! # Stores
+//! # المخازن
 //!
-//! | Store | PostgreSQL | SQLite |
+//! | المخزن | PostgreSQL | SQLite |
 //! |-------|:---------:|:------:|
-//! | Users | ✅ `pg::PgUserStore` | ✅ `SqliteUserStore` |
-//! | Sessions | ✅ `pg::PgSessionStore` | ❌ (in-memory only) |
-//! | Events | ✅ `pg::PgEventStore` | ✅ `SqliteEventStore` |
-//! | Packages | ✅ `pg::PgPackageStore` | ✅ `SqlitePackageStore` |
-//! | Billing | ✅ `pg::PgBillingStore` | ✅ `SqliteBillingStore` |
-//! | Audit | ✅ `pg::PgAuditStore` | ❌ (in-memory only) |
-//! | Secrets | ✅ `pg::PgSecretStore` | ❌ (in-memory only) |
+//! | المستخدمون | ✅ `pg::PgUserStore` | ✅ `SqliteUserStore` |
+//! | الجلسات | ✅ `pg::PgSessionStore` | ❌ (في الذاكرة فقط) |
+//! | الأحداث | ✅ `pg::PgEventStore` | ✅ `SqliteEventStore` |
+//! | الحزم | ✅ `pg::PgPackageStore` | ✅ `SqlitePackageStore` |
+//! | الفوترة | ✅ `pg::PgBillingStore` | ✅ `SqliteBillingStore` |
+//! | التدقيق | ✅ `pg::PgAuditStore` | ❌ (في الذاكرة فقط) |
+//! | الأسرار | ✅ `pg::PgSecretStore` | ❌ (في الذاكرة فقط) |
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]

@@ -1,203 +1,144 @@
-# Nexora Core — RFC v1.0 (Draft)
+# Nexora Core — نواة نظام التشغيل السحابي
+## RFC v1.0 (مسودة)
 
-**Status:** Draft
-**Last Updated:** 2026-07-01
-**Document Owner:** Nexora Platform Engineering
-**Classification:** Internal — Engineering Specification
-**Implements:** Nexora Engineering Specification, Part 4 (NEXORA CORE)
+**الحالة:** مسودة
+**آخر تحديث:** 2026-07-01
+**مالك الوثيقة:** هندسة منصة Nexora
+**التصنيف:** داخلي — مواصفة هندسية
 
 ---
 
-## 1. Abstract
+## 1. الملخص
 
-Nexora Core is the **cloud operating system kernel** of the Nexora platform.
-It is responsible for loading, managing, securing, monitoring, and
-orchestrating every platform capability. Nothing inside the platform runs
-independently of the Core.
+Nexora Core هو نواة نظام تشغيل سحابي تدير دورة حياة الوحدات، الخدمات،
+الأحداث، الصلاحيات، المكونات، التكوين، الأسرار، والصحة. توفر النواة
+البنية التحتية التي تُبنى عليها كل خدمات المنصة (المصادقة، المتجر،
+الفوترة، إلخ).
 
-This document specifies the v0.1 implementation of Nexora Core, which
-provides 8 subsystems on top of the NXP protocol (RFC v1.0):
+## 2. التصميم
 
-1. Module Manager
-2. Service Registry
-3. Event Bus
-4. Permission Engine
-5. Plugin Manager
-6. Configuration Manager
-7. Secret Manager
-8. Health Monitor
+النواة مبنية على نمط **مصدر الحقيقة الواحد**: ناقل الأحداث هو المصدر
+الوحيد للحقيقة، وكل الأنظمة الفرعية الأخرى هي إسقاطات تُعاد بناؤها من
+سجل الأحداث. هذا يضمن:
 
-Plus a Core NXP Handler that dispatches protocol-control and core-system
-opcodes to these subsystems.
+- قابلية إعادة التشغيل الكاملة بعد الأعطال
+- تدقيق كامل لكل تغيير حالة
+- فصل نظيف بين الكتابة (نشر الأحداث) والقراءة (الإسقاطات)
 
-## 2. Architecture
+## 3. الأنظمة الفرعية
 
-```
-                        ┌──────────────────────┐
-                        │   NXP Transport      │
-                        │   (QUIC via quinn)   │
-                        └──────────┬───────────┘
-                                   │
-                        ┌──────────▼───────────┐
-                        │   Core NXP Handler   │
-                        │   (dispatch table)   │
-                        └──────────┬───────────┘
-                                   │
-        ┌───────────┬──────────────┼──────────────┬───────────┐
-        │           │              │              │           │
-┌───────▼───┐ ┌─────▼─────┐ ┌──────▼──────┐ ┌─────▼────┐ ┌────▼─────┐
-│  Modules  │ │  Registry │ │  Event Bus  │ │ Plugins  │ │ Health   │
-│  Manager  │ │           │ │  (source of │ │ Manager  │ │ Monitor  │
-│           │ │           │ │   truth)    │ │          │ │          │
-└─────┬─────┘ └───────────┘ └─────┬───────┘ └────┬─────┘ └──────────┘
-      │                           │              │
-      └───────────┬───────────────┴──────────────┘
-                  │
-          ┌───────▼───────┐         ┌─────────────────┐
-          │  Permission   │         │   Secrets       │
-          │  Engine       │         │   Manager       │
-          │  (RBAC + ABAC)│         │  (versioned)    │
-          └───────────────┘         └─────────────────┘
-```
+### 3.1 مدير الوحدات
 
-## 3. Subsystems
+يدير دورة حياة وحدات المنصة: التثبيت، التفعيل، الإيقاف المؤقت،
+الاستئناف، إلغاء التثبيت. كل تغيير حالة يُسجّل كحدث في ناقل الأحداث.
 
-### 3.1 Module Manager
+| العملية | الوصف |
+|---------|--------|
+| `install` | يثبّت وحدة جديدة في النواة |
+| `enable` | يفعّل وحدة مثبّتة |
+| `pause` | يوقف وحدة مؤقتاً |
+| `resume` | يستأنف وحدة موقوفة |
+| `uninstall` | يزيل وحدة من النواة |
 
-Manages the lifecycle of platform modules. Every capability is a module
-(Auth, Billing, Marketplace, etc.). The lifecycle is atomic and auditable:
-every transition generates an event on the EventBus.
+### 3.2 سجل الخدمات
 
-**States:** `Installed → Enabled ⇄ Paused → Removed`
+يربط الأسماء المنطقية بنسخ الخدمات. يُستخدم لاكتشاف الخدمات بدون DNS.
 
-**Operations:** `install`, `enable`, `pause`, `resume`, `uninstall`,
-plus `get`, `list`, `list_in_state`.
+| العملية | الوصف |
+|---------|--------|
+| `register` | يسجّل نسخة خدمة باسم منطقي |
+| `lookup` | يبحث عن نسخ خدمة بالاسم |
+| `pick_one` | يختار نسخة واحدة (للموازنة) |
 
-### 3.2 Service Registry
+### 3.3 ناقل الأحداث
 
-Logical-name → service-instance lookup. Services register themselves and
-discover peers by logical identity (never hardcoded addresses).
+مصدر الحقيقة الوحيد. سجل أحداث غير قابل للتغيير، قابل لإعادة التشغيل.
+كل حدث له معرّف متزايد رتيب.
 
-**Operations:** `register`, `deregister`, `heartbeat`, `mark_unhealthy`,
-`lookup`, `lookup_healthy`, `pick_one` (priority-ordered).
+| العملية | الوصف |
+|---------|--------|
+| `publish` | ينشر حدثاً جديداً |
+| `subscribe` | يشترك في الأحداث (مع فلتر بادئة اختياري) |
+| `replay` | يُعيد تشغيل الأحداث من معرّف محدد |
+| `replay_filtered` | يُعيد تشغيل الأحداث المطابقة لبادئة |
 
-### 3.3 Event Bus
+### 3.4 محرك الصلاحيات
 
-The **source of truth** for the entire platform. Events are immutable,
-append-only, replayable. Every state change generates an event.
+RBAC + ABAC مع أنماط البطاقة البرية. يدعم الأدوار، المنح، والموارد.
 
-- Monotonic 64-bit event IDs
-- Broadcast channel for live subscribers (filter by name prefix)
-- `replay(from_id)` and `replay_filtered(from_id, prefix)` for backfill
-- In-process implementation; swappable with NATS/Kafka in Tier 2/3
+| العملية | الوصف |
+|---------|--------|
+| `register_principal` | يسجّل كياناً (مستخدم/خدمة) |
+| `assign_role` | يسنِد دوراً لكيان |
+| `check` | يتحقق من صلاحية |
+| `is_allowed` | تحقق سريع (نعم/لا) |
 
-### 3.4 Permission Engine
+### 3.5 مدير المكونات
 
-Hierarchical RBAC + ABAC. Principals hold Roles, Roles grant Permissions
-on resource patterns (supports `*` trailing wildcard).
+إدارة المكونات الموقّعة في صندوق حماية. كل مكون موقّع بـ Ed25519
+ويُتحقَّق منه قبل التفعيل.
 
-**Permissions:** `Read`, `Write`, `Create`, `Delete`, `Execute`, `Admin`
+| العملية | الوصف |
+|---------|--------|
+| `register` | يسجّل مكوناً جديداً |
+| `verify` | يتحقق من توقيع المكون |
+| `activate` | يفعّل مكوناً |
+| `stop` | يوقف مكوناً |
+| `remove` | يزيل مكوناً |
 
-**Principal kinds:** `User`, `Service`, `Plugin`, `AiAgent`
+### 3.6 مدير التكوين
 
-### 3.5 Plugin Manager
+تكوين ديناميكي مفتاح-قيمة. يدعم إعادة التحميل واللقطات.
 
-Manages sandboxed, signed, resource-limited extensions. Every plugin
-carries:
-- A manifest with declared capabilities
-- An Ed25519 signer public key + signature
-- SHA-256 integrity hash (over canonical manifest bytes)
-- Resource limits (CPU, memory, command rate, duration)
+| العملية | الوصف |
+|---------|--------|
+| `set` | يضبط قيمة تكوين |
+| `get` | يجلب قيمة تكوين |
+| `reload` | يعيد تحميل التكوين من المصدر |
+| `snapshot` | يلتقط كل التكوين |
 
-**States:** `Pending → Verified → Active ⇄ Stopped → Removed`
+### 3.7 مدير الأسرار
 
-### 3.6 Configuration Manager
+أسرار موسومة بالنسخ، مدققة. يدعم التدوير والتراجع.
 
-Dynamic, hot-reloadable key-value configuration. Supports strings, ints,
-bools, floats, and nested maps.
+| العملية | الوصف |
+|---------|--------|
+| `put` | يخزن سراً (نسخة جديدة) |
+| `get` | يجلب السر (أحدث نسخة افتراضياً) |
+| `rollback` | يتراجع إلى نسخة سابقة |
+| `delete` | يحذف سراً |
 
-### 3.7 Secret Manager
+### 3.8 مراقب الصحة
 
-Versioned, audited secrets. Every put creates a new version; the previous
-version is deactivated. Supports rollback to any prior version. In v0.1
-secrets are stored in-memory; production deployments replace this with an
-HSM-backed vault. The public API is identical.
+يجمع حالة كل الأنظمة الفرعية ويوفر صورة شاملة لصحة المنصة.
 
-### 3.8 Health Monitor
+| العملية | الوصف |
+|---------|--------|
+| `report` | يبلّغ عن حالة نظام فرعي |
+| `status` | يجلب الحالة التجميعية |
+| `is_healthy` | تحقق سريع (نعم/لا) |
+| `snapshot` | يلتقط كل تقارير الصحة |
 
-Aggregates subsystem health into a single status: `Healthy`, `Degraded`,
-or `Unhealthy`. Worst-of wins.
+## 4. التكامل مع NXP
 
-## 4. Core NXP Handler
+النواة تعرض معالج NXP يوجّه الأكواد إلى الأنظمة الفرعية المناسبة.
+الأكواد المدعومة تشمل: PING، PUBLISH_EVENT، REPLAY_EVENTS،
+EXECUTE_COMMAND، إلخ.
 
-The Core implements an NXP handler that dispatches the following opcodes:
+## 5. التزامن والأداء
 
-| Opcode | Implementation |
-|--------|----------------|
-| `PING` | Returns `{pong: true}` |
-| `PONG` | Acknowledgment |
-| `BYE` | Session close |
-| `REGISTER_SERVICE` | Adds instance to ServiceRegistry |
-| `DISCOVER_SERVICE` | Lookup instances by name |
-| `SUBSCRIBE_EVENT` | Returns `{ok: true}` (transport layer holds the stream) |
-| `PUBLISH_EVENT` | Publishes to EventBus; returns event_id |
-| `REPLAY_EVENTS` | Returns events from offset, optional filter |
-| `EXECUTE_COMMAND` | Dispatches to `module.*`, `plugin.*`, `principal.*` commands |
-| AI opcodes (`0x8001`–`0x8005`) | **Rejected** (Part 11 deferred) |
+- كل الأنظمة الفرعية آمنة للخيوط (thread-safe)
+- ناقل الأحداث يستخدم RwLock للسماح بقراءات متزامنة
+- عمليات الكتابة نادرة نسبة للقراءة، لذا القراءات سريعة
 
-The `EXECUTE_COMMAND` opcode requires a permission check against the
-PermissionEngine before dispatching. Unauthorized commands return an
-`AUTHZ` error.
+## 6. قابلية الملاحظة
 
-## 5. Compliance with Nexora Specification
+- كل عملية تُسجّل عبر `tracing`
+- معرفات التتبع تُحقن في الإطارات
+- مقاييس الصحة متاحة عبر معالج NXP و HTTP
 
-| Spec Section | Status |
-|--------------|--------|
-| Part 4 — Module Management | ✅ Implemented |
-| Part 4 — Plugin Management | ✅ Implemented |
-| Part 4 — Service Registry | ✅ Implemented |
-| Part 4 — Permission Engine | ✅ Implemented |
-| Part 4 — Event Bus | ✅ Implemented |
-| Part 4 — Config Manager | ✅ Implemented |
-| Part 4 — Secret Manager | ✅ Implemented |
-| Part 4 — Health Monitor | ✅ Implemented |
-| Part 4 — Self Healing | ⏳ Health monitoring only; auto-restart pending |
-| Part 4 — Update Engine | ⏳ Pending v0.2 |
-| Part 4 — Cluster Manager | ⏳ Pending v0.2 (single-node in v0.1) |
-| Part 9 — Zero Trust Auth | ✅ Permission checks on every command |
-| Part 11 — AI Deferred | ✅ AI opcodes rejected at dispatch |
+## 7. المراجع
 
-## 6. Test Coverage
-
-42 unit tests + 7 end-to-end smoke tests, all passing:
-
-- **Module Manager (5):** install/enable/pause/resume/uninstall, duplicate
-  rejection, invalid transition rejection, state filtering
-- **Service Registry (3):** register/lookup/deregister, unhealthy filtering,
-  duplicate rejection
-- **Event Bus (5):** monotonic IDs, replay, filtered replay, subscriber
-  filtering, immutability
-- **Permission Engine (6):** admin/dev/viewer roles, unknown principal
-  denial, assign/revoke, pattern matching
-- **Plugin Manager (5):** register/verify/activate/stop/remove, state
-  enforcement, integrity hash stability, integrity hash content sensitivity
-- **Config Manager (3):** set/get, reload, defaults
-- **Secret Manager (4):** put/get, versioning, rollback, delete
-- **Health Monitor (4):** empty state, degraded propagation, unhealthy
-  dominance, snapshot
-- **Core Handler (6):** ping, AI rejection, service registration+discovery,
-  event publish+replay, command execution with permission, permission
-  denial
-- **Smoke Test (7):** PING, PUBLISH_EVENT, EXECUTE_COMMAND install+enable,
-  REPLAY_EVENTS, permission denial, AI rejection
-
-## 7. Future Work (v0.2+)
-
-- Cluster Manager (multi-node Core)
-- Update Engine (rolling, blue/green, canary)
-- Self-healing auto-restart
-- Workflow Engine
-- AI Runtime (Part 11 — still deferred)
-- HSM-backed Signer for plugins
-- Persistent event store (Postgres/ClickHouse backend)
-- Distributed lock manager for cluster-wide module state
+- مواصفة Nexora الهندسية، الجزء 4 (Nexora Core)
+- RFC 9000 — QUIC (للنقل)
+- نمط Event Sourcing — Martin Fowler

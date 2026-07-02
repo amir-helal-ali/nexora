@@ -1,11 +1,11 @@
-//! NXP security layer.
+//! طبقة أمان NXP.
 //!
-//! See RFC §5. Provides:
-//! - AEAD (ChaCha20-Poly1305) for frame confidentiality + integrity
-//! - Ed25519 signing / verification for privileged frames
-//! - X25519 ECDHE for session key agreement
-//! - HKDF-SHA256 for key derivation
-//! - Replay window for nonce-based replay protection
+//! انظر RFC §5. توفر:
+//! - AEAD (ChaCha20-Poly1305) لسرية + نزاهة الإطار
+//! - توقيع / تحقق Ed25519 للإطارات المميزة
+//! - X25519 ECDHE لاتفاق مفتاح الجلسة
+//! - HKDF-SHA256 لاشتقاق المفاتيح
+//! - نافذة منع إعادة التشغيل للحماية القائمة على nonce
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
