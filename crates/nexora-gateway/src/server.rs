@@ -234,6 +234,10 @@ impl GatewayServer {
         Router::new()
             .merge(public_routes)
             .merge(protected_routes)
+            .layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                crate::auto_metrics::auto_metrics_middleware,
+            ))
             .layer(CorsLayer::permissive())
             .layer(TraceLayer::new_for_http())
             .layer(RequestBodyLimitLayer::new(16 * 1024 * 1024)) // 16 MiB max body

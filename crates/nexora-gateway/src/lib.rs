@@ -51,6 +51,7 @@ pub mod spec;
 pub mod sso;
 pub mod extended_routes;
 pub mod rate_limit;
+pub mod auto_metrics;
 
 #[cfg(test)]
 pub mod integration_tests;
