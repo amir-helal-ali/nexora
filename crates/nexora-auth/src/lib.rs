@@ -23,6 +23,7 @@ pub mod password;
 pub mod store;
 pub mod token;
 pub mod users;
+pub mod webauthn;
 
 #[cfg(feature = "sso")]
 pub mod sso;
