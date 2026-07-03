@@ -1,0 +1,53 @@
+# OpenTelemetry Collector Configuration for Nexora
+# ============================================================
+# يجمع التتبعات من Nexora ويرسلها إلى:
+# - Jaeger (لعرض التتبعات)
+# - Zipkin (بديل)
+# - ملف محلي (للتطوير)
+
+receivers:
+  # استقبال OTLP من Nexora
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # أخذ عينات (10% من التتبعات)
+  probabilistic_sampler:
+    sampling_percentage: 10
+
+  # إضافة سمات الموارد
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: production
+        action: upsert
+
+  # تجميع الدفعات
+  batch:
+    timeout: 5s
+    send_batch_size: 1000
+
+exporters:
+  # إرسال إلى Jaeger
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+
+  # إرسال إلى ملف (للتطوير)
+  file:
+    path: /tmp/nexora-traces.json
+
+  # إرسال إلى stdout (تصحيح)
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [probabilistic_sampler, resource, batch]
+      exporters: [jaeger, file]
+    # يمكن إضافة metrics و logs لاحقاً
