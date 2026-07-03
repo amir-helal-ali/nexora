@@ -292,3 +292,32 @@ mod tests {
         assert!(!engine.dismiss_alert("nonexistent"));
     }
 }
+
+impl SecurityEngine {
+    /// ربط محرك الأمان بخدمة الإشعارات.
+    /// عند إنشاء تنبيه حرج/عالي، يُرسل إشعار تلقائياً.
+    pub fn analyze_and_notify(
+        &self,
+        entry: &nexora_audit::AuditEntry,
+        notifications: Option<&std::sync::Arc<nexora_notifications::NotificationService>>,
+    ) -> Option<SecurityAlert> {
+        let alert = self.analyze(entry)?;
+
+        // أرسل إشعاراً للتنبيهات الحرجة والعالية.
+        if matches!(alert.severity, Severity::Critical | Severity::High) {
+            if let Some(svc) = notifications {
+                let _ = svc.send_in_app(
+                    &alert.actor,
+                    &format!("⚠️ تنبيه أمني: {}", alert.severity),
+                    &format!(
+                        "النوع: {}\nالوصف: {}\nالفاعل: {}",
+                        alert.threat_type, alert.description, alert.actor
+                    ),
+                    None,
+                );
+            }
+        }
+
+        Some(alert)
+    }
+}

@@ -50,6 +50,7 @@ pub mod server;
 pub mod spec;
 pub mod sso;
 pub mod extended_routes;
+pub mod rate_limit;
 
 #[cfg(test)]
 pub mod integration_tests;
