@@ -1085,3 +1085,116 @@ pub async fn monitoring_alerts_clear(
     );
     Json(json!({"ok": true})).into_response()
 }
+
+// ==================================================================
+// Tracing Routes
+// ==================================================================
+
+/// `GET /api/tracing/recent` — أحدث التتبعات.
+pub async fn tracing_recent(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let traces = state.tracer.collector().recent_traces(20);
+    let trace_list: Vec<_> = traces
+        .iter()
+        .map(|(id, spans)| {
+            let span_count = spans.len();
+            let total_duration: i64 = spans.iter()
+                .filter_map(|s| s.duration_nanos)
+                .sum();
+            let root = spans.iter().find(|s| s.context.parent_span_id.is_none());
+            json!({
+                "trace_id": id,
+                "span_count": span_count,
+                "root_name": root.map(|s| s.name.as_str()).unwrap_or("unknown"),
+                "total_duration_ms": total_duration as f64 / 1_000_000.0,
+            })
+        })
+        .collect();
+    Json(json!({
+        "traces": trace_list,
+        "count": trace_list.len(),
+        "total_spans": state.tracer.collector().span_count(),
+        "total_traces": state.tracer.collector().trace_count(),
+    }))
+    .into_response()
+}
+
+/// `GET /api/tracing/:trace_id` — تتبع محدد بكل Spans.
+pub async fn tracing_get(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Path(trace_id): Path<String>,
+) -> AxumResponse {
+    let spans = state.tracer.collector().get_trace(&trace_id);
+    if spans.is_empty() {
+        return error_response(StatusCode::NOT_FOUND, "تتبع غير موجود");
+    }
+    Json(json!({
+        "trace_id": trace_id,
+        "spans": spans,
+        "span_count": spans.len(),
+    }))
+    .into_response()
+}
+
+/// `GET /api/tracing/stats` — إحصائيات التتبع.
+pub async fn tracing_stats(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    Json(json!({
+        "total_traces": state.tracer.collector().trace_count(),
+        "total_spans": state.tracer.collector().span_count(),
+    }))
+    .into_response()
+}
+
+// ==================================================================
+// Report Scheduler Routes
+// ==================================================================
+
+/// `GET /api/monitoring/reports` — قائمة التقارير المُولّدة.
+pub async fn monitoring_reports_list(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let reports = state.scheduler.list_reports();
+    Json(json!({
+        "reports": reports,
+        "count": reports.len(),
+    }))
+    .into_response()
+}
+
+/// `POST /api/monitoring/reports/generate` — توليد تقرير فوري.
+#[derive(Deserialize)]
+pub struct GenerateReportBody {
+    pub period: String,
+}
+
+pub async fn monitoring_reports_generate(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Json(body): Json<GenerateReportBody>,
+) -> AxumResponse {
+    let period = match body.period.as_str() {
+        "hourly" => nexora_monitoring::SchedulePeriod::Hourly,
+        "daily" => nexora_monitoring::SchedulePeriod::Daily,
+        "weekly" => nexora_monitoring::SchedulePeriod::Weekly,
+        _ => return error_response(StatusCode::BAD_REQUEST, "فترة غير صالحة (hourly/daily/weekly)"),
+    };
+
+    let report = state.scheduler.generate_now(
+        period,
+        &state.monitor.metrics,
+        &state.alerter,
+    );
+
+    Json(json!({
+        "report": report,
+        "ok": true,
+    }))
+    .into_response()
+}

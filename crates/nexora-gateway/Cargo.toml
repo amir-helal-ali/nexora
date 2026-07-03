@@ -21,6 +21,7 @@ nexora-rules = { path = "../nexora-rules" }
 nexora-audit = { path = "../nexora-audit" }
 nexora-security = { path = "../nexora-security" }
 nexora-monitoring = { path = "../nexora-monitoring" }
+nexora-tracing = { path = "../nexora-tracing" }
 async-graphql.workspace = true
 tokio.workspace = true
 tokio-stream = { version = "0.1", features = ["sync"] }

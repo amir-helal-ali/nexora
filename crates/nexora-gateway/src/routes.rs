@@ -72,6 +72,10 @@ pub struct GatewayState {
     pub monitor: Arc<nexora_monitoring::Monitor>,
     /// Performance alerter.
     pub alerter: Arc<nexora_monitoring::PerformanceAlerter>,
+    /// Report scheduler.
+    pub scheduler: Arc<nexora_monitoring::ReportScheduler>,
+    /// Distributed tracer.
+    pub tracer: Arc<nexora_tracing::Tracer>,
     /// Whether the gateway is ready to serve traffic.
     pub ready: bool,
 }
@@ -1318,6 +1322,8 @@ mod tests {
             webauthn: std::sync::Arc::new(nexora_auth::webauthn::WebAuthnManager::new()),
             monitor: std::sync::Arc::new(nexora_monitoring::Monitor::new()),
             alerter: std::sync::Arc::new(nexora_monitoring::PerformanceAlerter::new().with_defaults()),
+            scheduler: std::sync::Arc::new(nexora_monitoring::ReportScheduler::new()),
+            tracer: std::sync::Arc::new(nexora_tracing::Tracer::new()),
             ready: true,
         }
     }

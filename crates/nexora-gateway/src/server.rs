@@ -87,6 +87,10 @@ impl GatewayServer {
         let monitor = Arc::new(nexora_monitoring::Monitor::new());
         // Initialize performance alerter with defaults.
         let alerter = Arc::new(nexora_monitoring::PerformanceAlerter::new().with_defaults());
+        // Initialize report scheduler.
+        let scheduler = Arc::new(nexora_monitoring::ReportScheduler::new());
+        // Initialize distributed tracer.
+        let tracer = Arc::new(nexora_tracing::Tracer::new());
         Self {
             state: GatewayState {
                 auth: auth_handler,
@@ -106,6 +110,8 @@ impl GatewayServer {
                 webauthn: webauthn_manager,
                 monitor,
                 alerter,
+                scheduler,
+                tracer,
                 ready: true,
             },
         }
@@ -236,6 +242,13 @@ impl GatewayServer {
             .route("/api/monitoring/alerts/rules", get(crate::extended_routes::monitoring_alert_rules))
             .route("/api/monitoring/alerts/check", post(crate::extended_routes::monitoring_alerts_check))
             .route("/api/monitoring/alerts/clear", post(crate::extended_routes::monitoring_alerts_clear))
+            // Report scheduler routes
+            .route("/api/monitoring/reports", get(crate::extended_routes::monitoring_reports_list))
+            .route("/api/monitoring/reports/generate", post(crate::extended_routes::monitoring_reports_generate))
+            // Tracing routes
+            .route("/api/tracing/recent", get(crate::extended_routes::tracing_recent))
+            .route("/api/tracing/stats", get(crate::extended_routes::tracing_stats))
+            .route("/api/tracing/:trace_id", get(crate::extended_routes::tracing_get))
             // Security presets routes
             .route("/api/security/presets", get(crate::extended_routes::security_presets_list))
             .route("/api/security/presets/:bundle/apply", post(crate::extended_routes::security_presets_apply))
