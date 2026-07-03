@@ -2,7 +2,8 @@
 # ============================================================
 
 # المرحلة 1: بناء
-FROM rust:1.85-slim AS builder
+# استخدام latest لأن بعض الـ crates تتطلب Rust 1.89+
+FROM rust:latest AS builder
 
 WORKDIR /app
 
@@ -12,8 +13,8 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# نسخ ملفات المشروع
-COPY Cargo.toml ./
+# نسخ ملفات المشروع (Cargo.lock موجود الآن في المستودع)
+COPY Cargo.toml Cargo.lock ./
 COPY crates/ ./crates/
 COPY demo/ ./demo/
 

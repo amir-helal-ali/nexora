@@ -108,10 +108,10 @@
       <p class="text-sm text-zinc-400 mt-1">{totalTraces} تتبع · {totalSpans} span</p>
     </div>
     <div class="flex gap-2 items-center">
-      <label class="flex items-center gap-2 text-sm text-zinc-400">
+      <span class="flex items-center gap-2 text-sm text-zinc-400">
         <input type="checkbox" bind:checked={autoRefresh} class="rounded" />
         تحديث تلقائي
-      </label>
+      </span>
       <button onclick={loadTraces} class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-sm transition">تحديث</button>
     </div>
   </div>

@@ -189,7 +189,7 @@
         class="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg border border-zinc-700 text-sm"
       />
       <div>
-        <label class="text-xs text-zinc-500">الشرط (JSON):</label>
+        <span class="text-xs text-zinc-500">الشرط (JSON):</span>
         <textarea
           bind:value={newCondition}
           rows="3"
@@ -197,7 +197,7 @@
         ></textarea>
       </div>
       <div>
-        <label class="text-xs text-zinc-500">الإجراءات (JSON array):</label>
+        <span class="text-xs text-zinc-500">الإجراءات (JSON array):</span>
         <textarea
           bind:value={newActions}
           rows="3"

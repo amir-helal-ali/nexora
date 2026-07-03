@@ -113,11 +113,7 @@
                 <div class="flex items-center gap-2">
                   <h3 class="text-sm font-medium text-white">{p.display_name}</h3>
                   <span
-                    class="px-2 py-0.5 text-xs rounded-full font-mono"
-                    class:bg-purple-900={p.kind === 'oidc'}
-                    class:text-purple-300={p.kind === 'oidc'}
-                    class:bg-blue-900={p.kind === 'saml'}
-                    class:text-blue-300={p.kind === 'saml'}
+                    class="px-2 py-0.5 text-xs rounded-full font-mono {p.kind === 'oidc' ? 'bg-purple-900 text-purple-300' : 'bg-blue-900 text-blue-300'}"
                   >
                     {p.kind.toUpperCase()}
                   </span>

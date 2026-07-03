@@ -156,7 +156,7 @@
     <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3">
       <h2 class="text-sm font-semibold text-white">تسجيل مفتاح أمان جديد</h2>
       <div>
-        <label class="text-sm text-zinc-400">اسم وصفي للمفتاح:</label>
+        <span class="text-sm text-zinc-400">اسم وصفي للمفتاح:</span>
         <input
           bind:value={newLabel}
           placeholder="مثلاً: مفتاحي الأساسي"
@@ -164,7 +164,7 @@
         />
       </div>
       <div>
-        <label class="text-sm text-zinc-400">نوع المنشئ:</label>
+        <span class="text-sm text-zinc-400">نوع المنشئ:</span>
         <select
           bind:value={newAuthType}
           class="mt-1 w-full bg-zinc-800 text-white px-3 py-2 rounded-lg border border-zinc-700 text-sm"

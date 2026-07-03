@@ -35,7 +35,7 @@ authors = ["Nexora Platform Engineering"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/nexora/nexora"
 description = "NXP — Nexora Exchange Protocol: binary protocol for the Nexora distributed cloud operating system"
-rust-version = "1.75"
+rust-version = "1.89"
 
 [workspace.dependencies]
 # Async runtime

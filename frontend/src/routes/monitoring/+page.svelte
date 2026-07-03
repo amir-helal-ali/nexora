@@ -110,10 +110,10 @@
       <p class="text-sm text-zinc-400 mt-1">مقاييس الأداء + فحوصات الصحة</p>
     </div>
     <div class="flex gap-2 items-center">
-      <label class="flex items-center gap-2 text-sm text-zinc-400">
+      <span class="flex items-center gap-2 text-sm text-zinc-400">
         <input type="checkbox" bind:checked={autoRefresh} class="rounded" />
         تحديث تلقائي (5ث)
-      </label>
+      </span>
       <button onclick={loadAll} class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-sm transition">تحديث</button>
       <button onclick={resetMetrics} class="px-4 py-2 bg-red-900/50 hover:bg-red-800 text-red-200 rounded-lg text-sm transition">إعادة ضبط</button>
     </div>

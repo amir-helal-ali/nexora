@@ -57,10 +57,10 @@
       <h1 class="text-2xl font-bold text-white">لوحة التحكم التنفيذية</h1>
       <p class="text-sm text-zinc-400 mt-1">نظرة شاملة على المنصة</p>
     </div>
-    <label class="flex items-center gap-2 text-sm text-zinc-400">
+    <span class="flex items-center gap-2 text-sm text-zinc-400">
       <input type="checkbox" bind:checked={autoRefresh} class="rounded" />
       تحديث تلقائي
-    </label>
+    </span>
   </div>
 
   {#if error}
