@@ -21,7 +21,9 @@
 pub mod span;
 pub mod tracer;
 pub mod propagation;
+pub mod otlp;
 
 pub use span::{Span, SpanId, SpanStatus, SpanKind};
 pub use tracer::{Tracer, TraceCollector};
 pub use propagation::{SpanContext, TraceId, propagate_headers};
+pub use otlp::{export_otlp, span_to_otlp, OtlpExport, OtlpSpan};
