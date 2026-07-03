@@ -77,6 +77,8 @@ impl GatewayServer {
             nexora_rules::RuleEngine::new(core.events_inner())
                 .with_notifications(notifications.clone()),
         );
+        // Initialize security engine.
+        let security_engine = Arc::new(nexora_security::SecurityEngine::new());
         Self {
             state: GatewayState {
                 auth: auth_handler,
@@ -91,6 +93,7 @@ impl GatewayServer {
                 mfa: mfa_manager,
                 audit: audit_logger,
                 rules: Some(rules_engine),
+                security: security_engine,
                 ready: true,
             },
         }
@@ -186,6 +189,15 @@ impl GatewayServer {
             .route("/api/rules/:id", axum::routing::delete(crate::extended_routes::rules_delete))
             .route("/api/rules/:id/enable", post(crate::extended_routes::rules_enable))
             .route("/api/rules/:id/disable", post(crate::extended_routes::rules_disable))
+            // Security routes
+            .route("/api/security/alerts", get(crate::extended_routes::security_alerts_list))
+            .route("/api/security/alerts/active", get(crate::extended_routes::security_alerts_active))
+            .route("/api/security/alerts/:id", get(crate::extended_routes::security_alert_get))
+            .route("/api/security/alerts/:id/resolve", post(crate::extended_routes::security_alert_resolve))
+            .route("/api/security/alerts/:id/dismiss", post(crate::extended_routes::security_alert_dismiss))
+            .route("/api/security/stats", get(crate::extended_routes::security_stats))
+            // Audit export routes
+            .route("/api/audit/export", get(crate::extended_routes::audit_export))
             .layer(from_fn_with_state(auth_middleware, require_token));
 
         Router::new()

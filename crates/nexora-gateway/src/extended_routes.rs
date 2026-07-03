@@ -406,3 +406,167 @@ pub async fn rules_stats(
     }))
     .into_response()
 }
+
+// ==================================================================
+// Security Routes
+// ==================================================================
+
+/// `GET /api/security/alerts` — قائمة التنبيهات الأمنية.
+pub async fn security_alerts_list(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let alerts = state.security.list_alerts();
+    let active = state.security.list_active_alerts().len();
+    Json(json!({
+        "alerts": alerts,
+        "total": alerts.len(),
+        "active": active,
+    }))
+    .into_response()
+}
+
+/// `GET /api/security/alerts/active` — التنبيهات النشطة فقط.
+pub async fn security_alerts_active(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let alerts = state.security.list_active_alerts();
+    Json(json!({
+        "alerts": alerts,
+        "count": alerts.len(),
+    }))
+    .into_response()
+}
+
+/// `GET /api/security/stats` — إحصائيات الأمان.
+pub async fn security_stats(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let stats = state.security.stats();
+    Json(json!({
+        "total_alerts": stats.total_alerts,
+        "active_alerts": stats.active_alerts,
+        "resolved_alerts": stats.resolved_alerts,
+        "critical_alerts": stats.critical_alerts,
+        "high_alerts": stats.high_alerts,
+        "last_alert_at": stats.last_alert_at,
+    }))
+    .into_response()
+}
+
+/// `POST /api/security/alerts/:id/resolve` — حل تنبيه.
+pub async fn security_alert_resolve(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> AxumResponse {
+    if state.security.resolve_alert(&id) {
+        state.audit.log(
+            AuditEntry::new(&ctx.user_id, "security.alert.resolve", &id)
+                .with_category(AuditCategory::Auth),
+        );
+        Json(json!({"ok": true})).into_response()
+    } else {
+        error_response(StatusCode::NOT_FOUND, "تنبيه غير موجود")
+    }
+}
+
+/// `POST /api/security/alerts/:id/dismiss` — تجاهل تنبيه.
+pub async fn security_alert_dismiss(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> AxumResponse {
+    if state.security.dismiss_alert(&id) {
+        state.audit.log(
+            AuditEntry::new(&ctx.user_id, "security.alert.dismiss", &id)
+                .with_category(AuditCategory::Auth),
+        );
+        Json(json!({"ok": true})).into_response()
+    } else {
+        error_response(StatusCode::NOT_FOUND, "تنبيه غير موجود")
+    }
+}
+
+/// `GET /api/security/alerts/:id` — تنبيه محدد.
+pub async fn security_alert_get(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> AxumResponse {
+    match state.security.get_alert(&id) {
+        Some(alert) => Json(json!({"alert": alert})).into_response(),
+        None => error_response(StatusCode::NOT_FOUND, "تنبيه غير موجود"),
+    }
+}
+
+// ==================================================================
+// Audit Export Routes (CSV + JSON)
+// ==================================================================
+
+/// `GET /api/audit/export?format=json` — تصدير سجل التدقيق.
+pub async fn audit_export(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Query(params): Query<ExportParams>,
+) -> AxumResponse {
+    let filter = AuditFilter::new().with_limit(params.limit.unwrap_or(10000));
+    let result = state.audit.query(&filter);
+
+    if params.format.as_deref() == Some("csv") {
+        // تصدير CSV.
+        let mut csv = String::from("id,actor,action,target,category,success,timestamp\n");
+        for e in &result.entries {
+            csv.push_str(&format!(
+                "{},{},{},{},{},{},{}\n",
+                e.id,
+                csv_escape(&e.actor),
+                csv_escape(&e.action),
+                csv_escape(&e.target),
+                e.category.as_str(),
+                e.success,
+                e.timestamp,
+            ));
+        }
+        (
+            StatusCode::OK,
+            [
+                (axum::http::header::CONTENT_TYPE, "text/csv; charset=utf-8".to_string()),
+                (axum::http::header::CONTENT_DISPOSITION, "attachment; filename=\"audit_log.csv\"".to_string()),
+            ],
+            csv,
+        )
+            .into_response()
+    } else {
+        // تصدير JSON.
+        (
+            StatusCode::OK,
+            [
+                (axum::http::header::CONTENT_TYPE, "application/json".to_string()),
+                (axum::http::header::CONTENT_DISPOSITION, "attachment; filename=\"audit_log.json\"".to_string()),
+            ],
+            Json(json!({
+                "entries": result.entries,
+                "total": result.total,
+                "exported_at": time::OffsetDateTime::now_utc().unix_timestamp_nanos() as i64,
+            })),
+        )
+            .into_response()
+    }
+}
+
+#[derive(Deserialize)]
+pub struct ExportParams {
+    pub format: Option<String>,
+    pub limit: Option<usize>,
+}
+
+fn csv_escape(s: &str) -> String {
+    if s.contains(',') || s.contains('"') || s.contains('\n') {
+        format!("\"{}\"", s.replace('"', "\"\""))
+    } else {
+        s.to_string()
+    }
+}

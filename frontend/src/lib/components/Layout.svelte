@@ -14,6 +14,7 @@
     { href: '/notifications', label: 'Notifications' },
     { href: '/rules', label: 'Rules' },
     { href: '/audit', label: 'Audit' },
+    { href: '/security', label: 'Security' },
     { href: '/mfa', label: 'MFA' },
     { href: '/sso', label: 'SSO' },
     { href: '/terminal', label: 'Terminal' },
