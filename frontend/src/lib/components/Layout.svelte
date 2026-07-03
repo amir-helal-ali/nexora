@@ -18,6 +18,8 @@
     { href: '/security', label: 'Security' },
     { href: '/policies', label: 'Policies' },
     { href: '/reports', label: 'Reports' },
+    { href: '/tracing', label: 'Tracing' },
+    { href: '/loadtest', label: 'LoadTest' },
     { href: '/monitoring', label: 'Monitoring' },
     { href: '/mfa', label: 'MFA' },
     { href: '/webauthn', label: 'WebAuthn' },
