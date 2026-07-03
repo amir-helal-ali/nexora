@@ -16,6 +16,7 @@
     { href: '/audit', label: 'Audit' },
     { href: '/security', label: 'Security' },
     { href: '/policies', label: 'Policies' },
+    { href: '/reports', label: 'Reports' },
     { href: '/mfa', label: 'MFA' },
     { href: '/webauthn', label: 'WebAuthn' },
     { href: '/sso', label: 'SSO' },
