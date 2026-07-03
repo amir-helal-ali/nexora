@@ -122,6 +122,8 @@ impl GatewayServer {
             .route("/api/ws", get(ws_handler))
             // GraphQL endpoint (POST for queries/mutations, GET for Playground HTML)
             .route("/api/graphql", post(graphql_handler).get(graphql_handler_playground))
+            // Prometheus metrics export (public — no auth for scrape compatibility)
+            .route("/api/monitoring/prometheus", get(crate::extended_routes::monitoring_prometheus))
             // SSO public routes (login flow + callbacks)
             .route("/api/auth/sso/oidc/:provider/login", get(crate::sso::sso_oidc_login))
             .route("/api/auth/sso/oidc/:provider/callback", get(crate::sso::sso_oidc_callback))

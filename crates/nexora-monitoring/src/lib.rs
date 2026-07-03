@@ -11,7 +11,9 @@
 pub mod metrics;
 pub mod health;
 pub mod monitor;
+pub mod prometheus;
 
 pub use metrics::{MetricsCollector, RequestMetrics, Timer};
 pub use health::{HealthProbe, HealthStatus, ProbeResult};
 pub use monitor::{Monitor, MonitorSnapshot};
+pub use prometheus::export_prometheus;

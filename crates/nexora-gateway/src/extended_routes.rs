@@ -1005,3 +1005,21 @@ pub async fn security_presets_list(
     }))
     .into_response()
 }
+
+// ==================================================================
+// Prometheus Export Route
+// ==================================================================
+
+/// `GET /api/monitoring/prometheus` — تصدير مقاييس بصيغة Prometheus.
+/// مسار عام (لا يحتاج Bearer token) لتوافق Prometheus scrape.
+pub async fn monitoring_prometheus(
+    State(state): State<GatewayState>,
+) -> axum::response::Response {
+    let text = nexora_monitoring::export_prometheus(&state.monitor.metrics);
+    (
+        StatusCode::OK,
+        [(axum::http::header::CONTENT_TYPE, "text/plain; version=0.0.4".to_string())],
+        text,
+    )
+        .into_response()
+}
