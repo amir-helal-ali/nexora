@@ -1,0 +1,15 @@
+apiVersion: v2
+name: nexora
+description: Nexora — نظام تشغيل سحابي. منصة متكاملة مع بروتوكول NXP، نواة Rust، واجهة SvelteKit، أمان مؤسسي.
+type: application
+version: 4.8.0
+appVersion: "4.8.0"
+keywords:
+  - cloud-os
+  - rust
+  - sveltekit
+  - nxp
+  - security
+  - observability
+maintainers:
+  - name: Nexora Platform Engineering

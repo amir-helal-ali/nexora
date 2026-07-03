@@ -1198,3 +1198,26 @@ pub async fn monitoring_reports_generate(
     }))
     .into_response()
 }
+
+// ==================================================================
+// OTLP Export Route
+// ==================================================================
+
+/// `GET /api/tracing/otlp` — تصدير كل Spans بصيغة OTLP JSON.
+pub async fn tracing_otlp_export(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let traces = state.tracer.collector().recent_traces(100);
+    let mut all_spans = Vec::new();
+    for (_, spans) in traces {
+        all_spans.extend(spans);
+    }
+    let json = nexora_tracing::export_otlp(&all_spans);
+    (
+        StatusCode::OK,
+        [(axum::http::header::CONTENT_TYPE, "application/json".to_string())],
+        json,
+    )
+        .into_response()
+}

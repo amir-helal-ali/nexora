@@ -249,6 +249,7 @@ impl GatewayServer {
             .route("/api/tracing/recent", get(crate::extended_routes::tracing_recent))
             .route("/api/tracing/stats", get(crate::extended_routes::tracing_stats))
             .route("/api/tracing/:trace_id", get(crate::extended_routes::tracing_get))
+            .route("/api/tracing/otlp", get(crate::extended_routes::tracing_otlp_export))
             // Security presets routes
             .route("/api/security/presets", get(crate::extended_routes::security_presets_list))
             .route("/api/security/presets/:bundle/apply", post(crate::extended_routes::security_presets_apply))
