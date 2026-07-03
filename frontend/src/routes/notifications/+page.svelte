@@ -172,22 +172,19 @@
     {:else}
       <div class="divide-y divide-zinc-800">
         {#each notifications as n (n.id)}
-          <div
-            class="p-4 hover:bg-zinc-800/50 transition flex items-start gap-3"
-            class:bg-blue-950/30={!n.read_at}
-          >
+          <div class="p-4 hover:bg-zinc-800/50 transition flex items-start gap-3 {!n.read_at ? 'bg-blue-950/30' : ''}">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
                 <h3 class="text-sm font-medium text-white truncate">{n.title}</h3>
-                {!n.read_at && (
+                {#if !n.read_at}
                   <span class="inline-block w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></span>
-                )}
+                {/if}
               </div>
               <p class="text-sm text-zinc-400 mt-1">{n.body}</p>
               <p class="text-xs text-zinc-600 mt-1">{formatTime(n.created_at)}</p>
             </div>
             <div class="flex gap-1 flex-shrink-0">
-              {!n.read_at && (
+              {#if !n.read_at}
                 <button
                   onclick={() => markRead(n.id)}
                   class="px-2 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-200 rounded transition"
@@ -195,7 +192,7 @@
                 >
                   ✓
                 </button>
-              )}
+              {/if}
               <button
                 onclick={() => deleteNotification(n.id)}
                 class="px-2 py-1 text-xs bg-red-900/50 hover:bg-red-800 text-red-200 rounded transition"

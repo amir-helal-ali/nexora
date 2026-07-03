@@ -5,4 +5,4 @@
   let { children }: { children: Snippet } = $props();
 </script>
 
-<slot />
+{@render children()}

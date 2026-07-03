@@ -147,21 +147,21 @@
       <h2 class="text-lg font-semibold text-white">تفعيل MFA</h2>
       <div class="space-y-3">
         <div>
-          <label class="text-sm text-zinc-400">1. امسح هذا السر في تطبيق المصادقة:</label>
+          <span class="text-sm text-zinc-400 block">1. امسح هذا السر في تطبيق المصادقة:</span>
           <div class="mt-2 bg-zinc-800 p-3 rounded-lg">
             <code class="text-green-400 text-sm break-all">{enrollment.secret}</code>
           </div>
         </div>
         {#if enrollment.otpauth_url}
           <div>
-            <label class="text-sm text-zinc-400">أو امسح QR code:</label>
+            <span class="text-sm text-zinc-400 block">أو امسح QR code:</span>
             <div class="mt-2 bg-zinc-800 p-3 rounded-lg">
               <code class="text-blue-400 text-xs break-all">{enrollment.otpauth_url}</code>
             </div>
           </div>
         {/if}
         <div>
-          <label class="text-sm text-zinc-400">2. أدخل الرمز من 6 أرقام:</label>
+          <span class="text-sm text-zinc-400 block">2. أدخل الرمز من 6 أرقام:</span>
           <input
             bind:value={verifyCode}
             placeholder="000000"
@@ -171,7 +171,7 @@
         </div>
         {#if enrollment.backup_codes?.length}
           <div>
-            <label class="text-sm text-zinc-400">أكواد الاسترداد (احفظها بأمان):</label>
+            <span class="text-sm text-zinc-400 block">أكواد الاسترداد (احفظها بأمان):</span>
             <div class="mt-2 grid grid-cols-2 gap-2">
               {#each enrollment.backup_codes as code}
                 <code class="bg-zinc-800 px-2 py-1 rounded text-yellow-400 text-sm font-mono">{code}</code>
