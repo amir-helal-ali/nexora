@@ -2081,3 +2081,141 @@ async fn security_presets_routes_protected() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 }
+
+// ==================================================================
+// اختبارات Performance Alerts
+// ==================================================================
+
+#[tokio::test]
+async fn monitoring_alerts_works() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/monitoring/alerts")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(json["rule_count"].as_u64().unwrap() >= 4);
+    assert!(json["recent_count"].is_number());
+}
+
+#[tokio::test]
+async fn monitoring_alert_rules_works() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/monitoring/alerts/rules")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(json["count"].as_u64().unwrap() >= 4);
+}
+
+#[tokio::test]
+async fn monitoring_alerts_check_works() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/monitoring/alerts/check")
+                .method("POST")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(json["count"].is_number());
+}
+
+#[tokio::test]
+async fn monitoring_alerts_clear_works() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/monitoring/alerts/clear")
+                .method("POST")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn monitoring_alerts_protected() {
+    let server = setup_server();
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/monitoring/alerts")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn monitoring_prometheus_public() {
+    let server = setup_server();
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/monitoring/prometheus")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let text = String::from_utf8(body.to_vec()).unwrap();
+    assert!(text.contains("# HELP nexora_requests_total"));
+    assert!(text.contains("# TYPE nexora_requests_total counter"));
+}
