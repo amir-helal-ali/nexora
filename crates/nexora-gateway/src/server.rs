@@ -83,6 +83,8 @@ impl GatewayServer {
         let policy_engine = Arc::new(nexora_security::PolicyEngine::new());
         // Initialize WebAuthn manager.
         let webauthn_manager = Arc::new(nexora_auth::webauthn::WebAuthnManager::new());
+        // Initialize monitor.
+        let monitor = Arc::new(nexora_monitoring::Monitor::new());
         Self {
             state: GatewayState {
                 auth: auth_handler,
@@ -100,6 +102,7 @@ impl GatewayServer {
                 security: security_engine,
                 policies: policy_engine,
                 webauthn: webauthn_manager,
+                monitor,
                 ready: true,
             },
         }
@@ -217,6 +220,15 @@ impl GatewayServer {
             .route("/api/auth/webauthn/credentials", get(crate::extended_routes::webauthn_list_credentials))
             .route("/api/auth/webauthn/credentials/:id", axum::routing::delete(crate::extended_routes::webauthn_delete_credential))
             .route("/api/auth/webauthn/stats", get(crate::extended_routes::webauthn_stats))
+            // Monitoring routes
+            .route("/api/monitoring/snapshot", get(crate::extended_routes::monitoring_snapshot))
+            .route("/api/monitoring/metrics", get(crate::extended_routes::monitoring_metrics))
+            .route("/api/monitoring/paths", get(crate::extended_routes::monitoring_paths))
+            .route("/api/monitoring/health", get(crate::extended_routes::monitoring_health))
+            .route("/api/monitoring/reset", post(crate::extended_routes::monitoring_reset))
+            // Security presets routes
+            .route("/api/security/presets", get(crate::extended_routes::security_presets_list))
+            .route("/api/security/presets/:bundle/apply", post(crate::extended_routes::security_presets_apply))
             .layer(from_fn_with_state(auth_middleware, require_token));
 
         Router::new()

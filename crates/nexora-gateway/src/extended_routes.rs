@@ -844,3 +844,164 @@ pub async fn webauthn_stats(State(state): State<GatewayState>) -> AxumResponse {
     }))
     .into_response()
 }
+
+// ==================================================================
+// Monitoring Routes
+// ==================================================================
+
+/// `GET /api/monitoring/snapshot` — لقطة المراقبة الشاملة.
+pub async fn monitoring_snapshot(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let snapshot = state.monitor.snapshot();
+    Json(json!({
+        "overall_health": snapshot.overall_health,
+        "total_requests": snapshot.total_requests,
+        "successful": snapshot.successful,
+        "failed": snapshot.failed,
+        "avg_latency_us": snapshot.avg_latency_us,
+        "error_rate": snapshot.error_rate,
+        "tracked_paths": snapshot.tracked_paths,
+        "probe_count": snapshot.probe_count,
+        "slowest_paths": snapshot.slowest_paths,
+        "error_paths": snapshot.error_paths,
+    }))
+    .into_response()
+}
+
+/// `GET /api/monitoring/metrics` — المقاييس الإجمالية.
+pub async fn monitoring_metrics(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let m = state.monitor.metrics.global_metrics();
+    Json(json!({
+        "total_requests": m.total_requests,
+        "successful": m.successful,
+        "failed": m.failed,
+        "avg_latency_us": m.avg_latency_us(),
+        "min_latency_us": if m.min_latency_us == u64::MAX { 0 } else { m.min_latency_us },
+        "max_latency_us": m.max_latency_us,
+        "success_rate": m.success_rate(),
+        "error_rate": m.error_rate(),
+        "errors_by_code": m.errors_by_code,
+        "tracked_paths": state.monitor.metrics.path_count(),
+    }))
+    .into_response()
+}
+
+/// `GET /api/monitoring/paths` — مقاييس كل مسار.
+pub async fn monitoring_paths(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let paths = state.monitor.metrics.tracked_paths();
+    let mut path_metrics = Vec::new();
+    for p in &paths {
+        if let Some(m) = state.monitor.metrics.path_metrics(p) {
+            path_metrics.push(json!({
+                "path": p,
+                "total_requests": m.total_requests,
+                "successful": m.successful,
+                "failed": m.failed,
+                "avg_latency_us": m.avg_latency_us(),
+                "min_latency_us": if m.min_latency_us == u64::MAX { 0 } else { m.min_latency_us },
+                "max_latency_us": m.max_latency_us,
+                "error_rate": m.error_rate(),
+            }));
+        }
+    }
+    Json(json!({
+        "paths": path_metrics,
+        "count": path_metrics.len(),
+    }))
+    .into_response()
+}
+
+/// `GET /api/monitoring/health` — فحوصات الصحة.
+pub async fn monitoring_health(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let results = state.monitor.health.run_all();
+    let overall = state.monitor.health.overall_status();
+    Json(json!({
+        "overall_status": overall.as_str(),
+        "probes": results,
+        "probe_count": results.len(),
+    }))
+    .into_response()
+}
+
+/// `POST /api/monitoring/reset` — إعادة ضبط المقاييس.
+pub async fn monitoring_reset(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    state.monitor.metrics.reset();
+    state.audit.log(
+        AuditEntry::new(&ctx.user_id, "monitoring.reset", "metrics")
+            .with_category(AuditCategory::System),
+    );
+    Json(json!({"ok": true})).into_response()
+}
+
+/// `POST /api/security/presets/:bundle/apply` — تطبيق حزمة سياسات جاهزة.
+pub async fn security_presets_apply(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+    Path(bundle_str): Path<String>,
+) -> AxumResponse {
+    let bundle = match bundle_str.as_str() {
+        "basic" => nexora_security::PresetBundle::Basic,
+        "enterprise" => nexora_security::PresetBundle::Enterprise,
+        "high_security" => nexora_security::PresetBundle::HighSecurity,
+        _ => return error_response(StatusCode::BAD_REQUEST, "حزمة غير معروفة (basic/enterprise/high_security)"),
+    };
+
+    let policies = nexora_security::create_preset(bundle);
+    let count = policies.len();
+    let mut ids = Vec::new();
+    for p in policies {
+        let id = state.policies.register(p);
+        ids.push(id);
+    }
+
+    state.audit.log(
+        AuditEntry::new(&ctx.user_id, "security.preset.apply", bundle_str.as_str())
+            .with_category(AuditCategory::Auth)
+            .with_metadata("policies_count", &count.to_string()),
+    );
+
+    Json(json!({
+        "ok": true,
+        "bundle": bundle_str,
+        "policies_created": count,
+        "policy_ids": ids,
+    }))
+    .into_response()
+}
+
+/// `GET /api/security/presets` — قائمة الحزم الجاهزة.
+pub async fn security_presets_list(
+    State(_state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let presets = nexora_security::all_presets();
+    let list: Vec<_> = presets
+        .iter()
+        .map(|(bundle, name, desc)| {
+            json!({
+                "bundle": name,
+                "description": desc,
+                "policy_count": nexora_security::create_preset(*bundle).len(),
+            })
+        })
+        .collect();
+    Json(json!({
+        "presets": list,
+        "count": list.len(),
+    }))
+    .into_response()
+}
