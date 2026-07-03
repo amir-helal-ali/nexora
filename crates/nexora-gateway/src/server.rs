@@ -85,6 +85,8 @@ impl GatewayServer {
         let webauthn_manager = Arc::new(nexora_auth::webauthn::WebAuthnManager::new());
         // Initialize monitor.
         let monitor = Arc::new(nexora_monitoring::Monitor::new());
+        // Initialize performance alerter with defaults.
+        let alerter = Arc::new(nexora_monitoring::PerformanceAlerter::new().with_defaults());
         Self {
             state: GatewayState {
                 auth: auth_handler,
@@ -103,6 +105,7 @@ impl GatewayServer {
                 policies: policy_engine,
                 webauthn: webauthn_manager,
                 monitor,
+                alerter,
                 ready: true,
             },
         }
@@ -228,6 +231,11 @@ impl GatewayServer {
             .route("/api/monitoring/paths", get(crate::extended_routes::monitoring_paths))
             .route("/api/monitoring/health", get(crate::extended_routes::monitoring_health))
             .route("/api/monitoring/reset", post(crate::extended_routes::monitoring_reset))
+            // Performance alert routes
+            .route("/api/monitoring/alerts", get(crate::extended_routes::monitoring_alerts))
+            .route("/api/monitoring/alerts/rules", get(crate::extended_routes::monitoring_alert_rules))
+            .route("/api/monitoring/alerts/check", post(crate::extended_routes::monitoring_alerts_check))
+            .route("/api/monitoring/alerts/clear", post(crate::extended_routes::monitoring_alerts_clear))
             // Security presets routes
             .route("/api/security/presets", get(crate::extended_routes::security_presets_list))
             .route("/api/security/presets/:bundle/apply", post(crate::extended_routes::security_presets_apply))

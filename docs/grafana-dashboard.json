@@ -1,0 +1,75 @@
+{
+  "dashboard": {
+    "title": "Nexora Platform Overview",
+    "description": "لوحة تحكم Grafana لمنصة Nexora",
+    "panels": [
+      {
+        "title": "إجمالي الطلبات",
+        "type": "stat",
+        "targets": [{ "expr": "nexora_requests_total", "legendFormat": "total" }],
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 }
+      },
+      {
+        "title": "معدل النجاح",
+        "type": "gauge",
+        "targets": [{ "expr": "nexora_success_rate * 100", "legendFormat": "success %" }],
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 }
+      },
+      {
+        "title": "معدل الخطأ",
+        "type": "gauge",
+        "targets": [{ "expr": "nexora_error_rate * 100", "legendFormat": "error %" }],
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+        "thresholds": [
+          { "value": 5, "color": "yellow" },
+          { "value": 15, "color": "red" }
+        ]
+      },
+      {
+        "title": "متوسط زمن الاستجابة",
+        "type": "stat",
+        "targets": [{ "expr": "nexora_latency_microseconds{quantile=\"avg\"} / 1000", "legendFormat": "avg ms" }],
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 }
+      },
+      {
+        "title": "الطلبات عبر الوقت",
+        "type": "graph",
+        "targets": [
+          { "expr": "rate(nexora_requests_total[1m])", "legendFormat": "requests/s" }
+        ],
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 }
+      },
+      {
+        "title": "زمن الاستجابة عبر الوقت",
+        "type": "graph",
+        "targets": [
+          { "expr": "nexora_latency_microseconds{quantile=\"avg\"}", "legendFormat": "avg" },
+          { "expr": "nexora_latency_microseconds{quantile=\"min\"}", "legendFormat": "min" },
+          { "expr": "nexora_latency_microseconds{quantile=\"max\"}", "legendFormat": "max" }
+        ],
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 }
+      },
+      {
+        "title": "الأخطاء حسب الكود",
+        "type": "pie",
+        "targets": [{ "expr": "nexora_errors_by_code", "legendFormat": "{{code}}" }],
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 }
+      },
+      {
+        "title": "طلبات لكل مسار",
+        "type": "bargauge",
+        "targets": [{ "expr": "nexora_path_requests", "legendFormat": "{{path}}" }],
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 }
+      },
+      {
+        "title": "زمن الاستجابة لكل مسار",
+        "type": "bargauge",
+        "targets": [{ "expr": "nexora_path_latency_avg", "legendFormat": "{{path}}" }],
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 }
+      }
+    ],
+    "schemaVersion": 27,
+    "time": { "from": "now-1h", "to": "now" },
+    "refresh": "5s"
+  }
+}

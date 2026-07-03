@@ -6,6 +6,7 @@
   let paletteOpen = $state(false);
 
   const navItems = [
+    { href: '/dashboard', label: 'Executive' },
     { href: '/', label: 'Dashboard' },
     { href: '/events', label: 'Events' },
     { href: '/modules', label: 'Modules' },

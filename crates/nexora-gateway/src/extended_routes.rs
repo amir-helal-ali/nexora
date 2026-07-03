@@ -1023,3 +1023,65 @@ pub async fn monitoring_prometheus(
     )
         .into_response()
 }
+
+// ==================================================================
+// Performance Alert Routes
+// ==================================================================
+
+/// `GET /api/monitoring/alerts` — قواعد التنبيهات + آخر التنبيهات.
+pub async fn monitoring_alerts(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    // تحقق من القواعد الحالية.
+    let active = state.alerter.check(&state.monitor.metrics);
+    let rules = state.alerter.list_rules();
+    let recent = state.alerter.recent_alerts();
+    Json(json!({
+        "rules": rules,
+        "rule_count": rules.len(),
+        "active_alerts": active,
+        "recent_alerts": recent,
+        "recent_count": recent.len(),
+    }))
+    .into_response()
+}
+
+/// `GET /api/monitoring/alerts/rules` — قائمة قواعد التنبيه.
+pub async fn monitoring_alert_rules(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let rules = state.alerter.list_rules();
+    Json(json!({
+        "rules": rules,
+        "count": rules.len(),
+    }))
+    .into_response()
+}
+
+/// `POST /api/monitoring/alerts/check` — فحص فوري للقواعد.
+pub async fn monitoring_alerts_check(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let alerts = state.alerter.check(&state.monitor.metrics);
+    Json(json!({
+        "alerts": alerts,
+        "count": alerts.len(),
+    }))
+    .into_response()
+}
+
+/// `POST /api/monitoring/alerts/clear` — مسح التنبيهات الأخيرة.
+pub async fn monitoring_alerts_clear(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    state.alerter.clear_alerts();
+    state.audit.log(
+        AuditEntry::new(&ctx.user_id, "monitoring.alerts.clear", "alerts")
+            .with_category(AuditCategory::System),
+    );
+    Json(json!({"ok": true})).into_response()
+}

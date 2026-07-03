@@ -70,6 +70,8 @@ pub struct GatewayState {
     pub webauthn: Arc<nexora_auth::webauthn::WebAuthnManager>,
     /// Performance monitor.
     pub monitor: Arc<nexora_monitoring::Monitor>,
+    /// Performance alerter.
+    pub alerter: Arc<nexora_monitoring::PerformanceAlerter>,
     /// Whether the gateway is ready to serve traffic.
     pub ready: bool,
 }
@@ -1315,6 +1317,7 @@ mod tests {
             policies: std::sync::Arc::new(nexora_security::PolicyEngine::new()),
             webauthn: std::sync::Arc::new(nexora_auth::webauthn::WebAuthnManager::new()),
             monitor: std::sync::Arc::new(nexora_monitoring::Monitor::new()),
+            alerter: std::sync::Arc::new(nexora_monitoring::PerformanceAlerter::new().with_defaults()),
             ready: true,
         }
     }
