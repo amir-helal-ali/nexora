@@ -68,6 +68,15 @@ impl GatewayServer {
         let graphql_schema = nexora_graphql::build_schema(core.clone());
         // Initialize SSO state (empty by default — providers added via admin API).
         let sso_state = Arc::new(crate::sso::SsoState::empty());
+        // Initialize MFA manager.
+        let mfa_manager = Arc::new(nexora_auth::mfa::MfaManager::new());
+        // Initialize audit logger (100k entries max).
+        let audit_logger = Arc::new(nexora_audit::AuditLogger::default());
+        // Initialize rules engine (linked to EventBus + Notifications).
+        let rules_engine = Arc::new(
+            nexora_rules::RuleEngine::new(core.events_inner())
+                .with_notifications(notifications.clone()),
+        );
         Self {
             state: GatewayState {
                 auth: auth_handler,
@@ -79,6 +88,9 @@ impl GatewayServer {
                 notifications,
                 graphql: Some(Arc::new(graphql_schema)),
                 sso: Some(sso_state),
+                mfa: mfa_manager,
+                audit: audit_logger,
+                rules: Some(rules_engine),
                 ready: true,
             },
         }
@@ -155,6 +167,25 @@ impl GatewayServer {
             .route("/api/auth/sso/providers", get(crate::sso::sso_list_providers))
             .route("/api/auth/sso/stats", get(crate::sso::sso_stats))
             .route("/api/auth/sso/logout", post(crate::sso::sso_logout))
+            // MFA routes
+            .route("/api/auth/mfa/enroll/begin", post(crate::extended_routes::mfa_enroll_begin))
+            .route("/api/auth/mfa/enroll/complete", post(crate::extended_routes::mfa_enroll_complete))
+            .route("/api/auth/mfa/verify", post(crate::extended_routes::mfa_verify))
+            .route("/api/auth/mfa/disable", post(crate::extended_routes::mfa_disable))
+            .route("/api/auth/mfa/status", get(crate::extended_routes::mfa_status))
+            .route("/api/auth/mfa/backup-codes/regenerate", post(crate::extended_routes::mfa_regenerate_backup_codes))
+            .route("/api/auth/mfa/stats", get(crate::extended_routes::mfa_stats))
+            // Audit routes
+            .route("/api/audit/entries", get(crate::extended_routes::audit_list))
+            .route("/api/audit/stats", get(crate::extended_routes::audit_stats))
+            .route("/api/audit/:id", get(crate::extended_routes::audit_get))
+            // Rules routes
+            .route("/api/rules", get(crate::extended_routes::rules_list).post(crate::extended_routes::rules_create))
+            .route("/api/rules/stats", get(crate::extended_routes::rules_stats))
+            .route("/api/rules/:id", get(crate::extended_routes::rules_get))
+            .route("/api/rules/:id", axum::routing::delete(crate::extended_routes::rules_delete))
+            .route("/api/rules/:id/enable", post(crate::extended_routes::rules_enable))
+            .route("/api/rules/:id/disable", post(crate::extended_routes::rules_disable))
             .layer(from_fn_with_state(auth_middleware, require_token));
 
         Router::new()

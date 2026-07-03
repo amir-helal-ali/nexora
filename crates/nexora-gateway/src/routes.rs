@@ -56,6 +56,12 @@ pub struct GatewayState {
     pub graphql: Option<Arc<nexora_graphql::NexoraSchema>>,
     /// SSO state (OIDC + SAML). None if SSO is not configured.
     pub sso: Option<Arc<crate::sso::SsoState>>,
+    /// MFA manager.
+    pub mfa: Arc<nexora_auth::mfa::MfaManager>,
+    /// Audit logger.
+    pub audit: Arc<nexora_audit::AuditLogger>,
+    /// Rules engine.
+    pub rules: Option<Arc<nexora_rules::RuleEngine>>,
     /// Whether the gateway is ready to serve traffic.
     pub ready: bool,
 }
@@ -1294,6 +1300,9 @@ mod tests {
             notifications,
             graphql: Some(std::sync::Arc::new(graphql_schema)),
             sso: Some(std::sync::Arc::new(crate::sso::SsoState::empty())),
+            mfa: std::sync::Arc::new(nexora_auth::mfa::MfaManager::new()),
+            audit: std::sync::Arc::new(nexora_audit::AuditLogger::default()),
+            rules: None,
             ready: true,
         }
     }

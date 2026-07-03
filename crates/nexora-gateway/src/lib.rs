@@ -49,6 +49,7 @@ pub mod routes;
 pub mod server;
 pub mod spec;
 pub mod sso;
+pub mod extended_routes;
 
 #[cfg(test)]
 pub mod integration_tests;
