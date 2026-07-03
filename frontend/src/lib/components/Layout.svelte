@@ -17,6 +17,7 @@
     { href: '/security', label: 'Security' },
     { href: '/policies', label: 'Policies' },
     { href: '/reports', label: 'Reports' },
+    { href: '/monitoring', label: 'Monitoring' },
     { href: '/mfa', label: 'MFA' },
     { href: '/webauthn', label: 'WebAuthn' },
     { href: '/sso', label: 'SSO' },
