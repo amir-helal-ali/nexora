@@ -13,12 +13,13 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # نسخ ملفات المشروع
-COPY Cargo.toml Cargo.lock ./
+# ملاحظة: Cargo.lock قد لا يكون موجوداً (محذوف من git)
+COPY Cargo.toml ./
 COPY crates/ ./crates/
 COPY demo/ ./demo/
 
-# بناء (release mode)
-RUN cargo build --release --bin gateway-demo
+# توليد Cargo.lock إن لم يكن موجوداً، ثم البناء (release mode)
+RUN cargo generate-lockfile && cargo build --release --bin gateway-demo
 
 # المرحلة 2: تشغيل
 FROM debian:bookworm-slim
