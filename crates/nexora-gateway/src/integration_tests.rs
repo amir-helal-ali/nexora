@@ -1070,3 +1070,259 @@ async fn rules_disable_nonexistent_returns_404() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 }
+
+// ==================================================================
+// اختبارات Security
+// ==================================================================
+
+#[tokio::test]
+async fn security_stats_initially_empty() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/stats")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["total_alerts"], 0);
+}
+
+#[tokio::test]
+async fn security_alerts_list_empty() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/alerts")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["total"], 0);
+}
+
+#[tokio::test]
+async fn security_alerts_active_empty() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/alerts/active")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["count"], 0);
+}
+
+#[tokio::test]
+async fn security_alert_get_nonexistent_returns_404() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/alerts/nonexistent-id")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn security_alert_resolve_nonexistent_returns_404() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/alerts/nonexistent-id/resolve")
+                .method("POST")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn security_alert_dismiss_nonexistent_returns_404() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/alerts/nonexistent-id/dismiss")
+                .method("POST")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn security_routes_protected() {
+    let server = setup_server();
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/stats")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+// ==================================================================
+// اختبارات Audit Export
+// ==================================================================
+
+#[tokio::test]
+async fn audit_export_json() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/audit/export?format=json")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let headers = resp.headers();
+    assert!(headers
+        .get("content-disposition")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .contains("audit_log.json"));
+}
+
+#[tokio::test]
+async fn audit_export_csv() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/audit/export?format=csv")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let headers = resp.headers();
+    assert!(headers
+        .get("content-disposition")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .contains("audit_log.csv"));
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let csv = String::from_utf8(body.to_vec()).unwrap();
+    assert!(csv.starts_with("id,actor,action,target,category,success,timestamp"));
+}
+
+#[tokio::test]
+async fn audit_export_default_is_json() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/audit/export")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let headers = resp.headers();
+    assert!(headers
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .contains("application/json"));
+}
+
+#[tokio::test]
+async fn audit_export_protected() {
+    let server = setup_server();
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/audit/export")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}

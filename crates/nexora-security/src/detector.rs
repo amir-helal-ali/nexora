@@ -263,3 +263,336 @@ mod tests {
         assert_eq!(an.name(), "anomaly");
     }
 }
+
+/// كاشف الوصول في أوقات غير معتادة (off-hours access).
+///
+/// يكتشف الوصول خارج ساعات العمل العادية (مثلاً 2:00 صباحاً).
+pub struct OffHoursDetector {
+    /// ساعة بداية العمل (0-23).
+    work_start: u32,
+    /// ساعة نهاية العمل (0-23).
+    work_end: u32,
+    /// المنطقة الزمنية (بالثواني من UTC).
+    tz_offset_seconds: i64,
+}
+
+impl OffHoursDetector {
+    pub fn new(work_start: u32, work_end: u32, tz_offset_seconds: i64) -> Self {
+        Self { work_start, work_end, tz_offset_seconds }
+    }
+
+    pub fn default() -> Self {
+        // ساعات العمل 8:00 - 18:00، UTC+3
+        Self::new(8, 18, 3 * 3600)
+    }
+
+    fn is_off_hours(&self, timestamp_nanos: i64) -> bool {
+        let secs = timestamp_nanos / 1_000_000_000;
+        let local_secs = secs + self.tz_offset_seconds;
+        let hours_since_midnight = ((local_secs % 86400 + 86400) % 86400) / 3600;
+        let hour = hours_since_midnight as u32;
+
+        if self.work_start <= self.work_end {
+            // نطاق عادي (مثلاً 8-18).
+            hour < self.work_start || hour >= self.work_end
+        } else {
+            // نطاق عبر منتصف الليل (مثلاً 22-6).
+            hour >= self.work_end && hour < self.work_start
+        }
+    }
+}
+
+impl Detector for OffHoursDetector {
+    fn name(&self) -> &str {
+        "off_hours"
+    }
+
+    fn analyze(&self, entry: &AuditEntry) -> Option<SecurityAlert> {
+        // اهتم فقط بالإجراءات الحساسة.
+        let is_sensitive = matches!(
+            entry.category,
+            nexora_audit::AuditCategory::Auth
+                | nexora_audit::AuditCategory::UserManagement
+                | nexora_audit::AuditCategory::Secret
+                | nexora_audit::AuditCategory::Config
+        );
+
+        if !is_sensitive || !entry.success {
+            return None;
+        }
+
+        if self.is_off_hours(entry.timestamp) {
+            let local_secs = entry.timestamp / 1_000_000_000 + self.tz_offset_seconds;
+            let hour = ((local_secs % 86400 + 86400) % 86400) / 3600;
+            return Some(SecurityAlert::new(
+                entry.actor.clone(),
+                Severity::Medium,
+                ThreatType::OffHoursAccess,
+                format!("وصول حساس في ساعة غير معتادة ({hour:02}:00)"),
+                vec![ThreatIndicator::new(
+                    ThreatType::OffHoursAccess,
+                    format!("hour={hour}"),
+                    entry.actor.clone(),
+                    0.5,
+                )],
+            ));
+        }
+
+        None
+    }
+}
+
+/// كاشف السفر المستحيل (impossible travel).
+///
+/// يكتشف دخول نفس المستخدم من IP مختلف في وقت قصير جداً
+/// (يستحيل السفر بين الموقعين في هذا الوقت).
+pub struct ImpossibleTravelDetector {
+    /// الحد الأقصى للسرعة (كم/ساعة) للاعتبار ممكناً.
+    max_speed_kmh: f64,
+    /// تتبع آخر موقع لكل فاعل: (actor → (ip, timestamp)).
+    last_location: RwLock<HashMap<String, (String, i64)>>,
+}
+
+impl ImpossibleTravelDetector {
+    pub fn new(max_speed_kmh: f64) -> Self {
+        Self {
+            max_speed_kmh,
+            last_location: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub fn default() -> Self {
+        Self::new(900.0) // 900 كم/ساعة (أسرع من الطائرات التجارية)
+    }
+}
+
+impl Detector for ImpossibleTravelDetector {
+    fn name(&self) -> &str {
+        "impossible_travel"
+    }
+
+    fn analyze(&self, entry: &AuditEntry) -> Option<SecurityAlert> {
+        // اهتم فقط بتسجيل الدخول الناجح.
+        if entry.category != nexora_audit::AuditCategory::Auth
+            || !entry.action.contains("login")
+            || !entry.success
+        {
+            return None;
+        }
+
+        // استخرج IP من البيانات الوصفية.
+        let ip = entry.metadata.get("ip")?.clone();
+        let now = entry.timestamp;
+
+        let mut locations = self.last_location.write();
+        if let Some((prev_ip, prev_ts)) = locations.get(&entry.actor).cloned() {
+            if prev_ip != ip {
+                let time_diff_secs = (now - prev_ts) / 1_000_000_000;
+                if time_diff_secs > 0 && time_diff_secs < 3600 {
+                    // تبديل IP خلال أقل من ساعة.
+                    // في الإنتاج، سنحسب المسافة الجغرافية بين IPs.
+                    // للتنفيذ المرجعي، نعتبر أي تبديل سريع مشبوهاً.
+                    let confidence = (1.0 - time_diff_secs as f64 / 3600.0).max(0.5);
+                    let alert = SecurityAlert::new(
+                        entry.actor.clone(),
+                        Severity::from_confidence(confidence),
+                        ThreatType::ImpossibleTravel,
+                        format!(
+                            "تبديل IP من {prev_ip} إلى {ip} خلال {time_diff_secs} ثانية"
+                        ),
+                        vec![ThreatIndicator::new(
+                            ThreatType::ImpossibleTravel,
+                            format!("{prev_ip} → {ip}"),
+                            entry.actor.clone(),
+                            confidence,
+                        )],
+                    );
+                    locations.insert(entry.actor.clone(), (ip, now));
+                    return Some(alert);
+                }
+            }
+        }
+
+        locations.insert(entry.actor.clone(), (ip, now));
+        None
+    }
+}
+
+#[cfg(test)]
+mod advanced_tests {
+    use super::*;
+    use nexora_audit::AuditCategory;
+
+    fn make_login_entry(actor: &str, ip: &str, ts: i64) -> AuditEntry {
+        AuditEntry::new(actor, "login", "session")
+            .with_category(AuditCategory::Auth)
+            .with_success(true)
+            .with_timestamp(ts)
+            .with_metadata("ip", ip)
+    }
+
+    // --- OffHoursDetector tests ---
+
+    #[test]
+    fn off_hours_detects_night_access() {
+        let det = OffHoursDetector::new(8, 18, 0); // UTC
+        // 2:00 صباحاً UTC = 7200 ثانية من منتصف الليل.
+        let ts = 7200 * 1_000_000_000i64;
+        let e = AuditEntry::new("alice", "login", "s")
+            .with_category(AuditCategory::Auth)
+            .with_success(true)
+            .with_timestamp(ts);
+        assert!(det.analyze(&e).is_some());
+    }
+
+    #[test]
+    fn off_hours_ignores_work_hours() {
+        let det = OffHoursDetector::new(8, 18, 0); // UTC
+        // 12:00 ظهراً UTC.
+        let ts = 43200 * 1_000_000_000i64;
+        let e = AuditEntry::new("alice", "login", "s")
+            .with_category(AuditCategory::Auth)
+            .with_success(true)
+            .with_timestamp(ts);
+        assert!(det.analyze(&e).is_none());
+    }
+
+    #[test]
+    fn off_hours_ignores_failures() {
+        let det = OffHoursDetector::default();
+        let e = AuditEntry::new("alice", "login", "s")
+            .with_category(AuditCategory::Auth)
+            .with_success(false)
+            .with_timestamp(7200 * 1_000_000_000i64);
+        assert!(det.analyze(&e).is_none());
+    }
+
+    #[test]
+    fn off_hours_ignores_non_sensitive() {
+        let det = OffHoursDetector::default();
+        let e = AuditEntry::new("alice", "read", "data")
+            .with_category(AuditCategory::Data)
+            .with_success(true)
+            .with_timestamp(7200 * 1_000_000_000i64);
+        assert!(det.analyze(&e).is_none());
+    }
+
+    #[test]
+    fn off_hours_tz_offset() {
+        // ساعات عمل 8-18 UTC+3.
+        let det = OffHoursDetector::new(8, 18, 3 * 3600);
+        // 5:00 UTC = 8:00 UTC+3 (بداية العمل).
+        let ts = (5 * 3600) * 1_000_000_000i64;
+        let e = AuditEntry::new("alice", "login", "s")
+            .with_category(AuditCategory::Auth)
+            .with_success(true)
+            .with_timestamp(ts);
+        assert!(det.analyze(&e).is_none());
+    }
+
+    #[test]
+    fn off_hours_wraps_midnight() {
+        // ساعات عمل 22-6 (داخل نطاق الليل).
+        let det = OffHoursDetector::new(22, 6, 0);
+        // 12:00 ظهراً = خارج النطاق (غير معتاد).
+        let ts = 43200 * 1_000_000_000i64;
+        let e = AuditEntry::new("alice", "login", "s")
+            .with_category(AuditCategory::Auth)
+            .with_success(true)
+            .with_timestamp(ts);
+        assert!(det.analyze(&e).is_some());
+    }
+
+    // --- ImpossibleTravelDetector tests ---
+
+    #[test]
+    fn impossible_travel_detects_rapid_ip_change() {
+        let det = ImpossibleTravelDetector::default();
+        let base = 1_000_000_000_000i64;
+        let e1 = make_login_entry("alice", "1.1.1.1", base);
+        assert!(det.analyze(&e1).is_none()); // أول دخول — لا تنبيه.
+
+        // دخول من IP مختلف بعد 5 دقائق.
+        let e2 = make_login_entry("alice", "2.2.2.2", base + 300 * 1_000_000_000);
+        let alert = det.analyze(&e2).unwrap();
+        assert_eq!(alert.threat_type, ThreatType::ImpossibleTravel);
+        assert!(alert.description.contains("1.1.1.1"));
+        assert!(alert.description.contains("2.2.2.2"));
+    }
+
+    #[test]
+    fn impossible_travel_ignores_same_ip() {
+        let det = ImpossibleTravelDetector::default();
+        let base = 1_000_000_000_000i64;
+        let e1 = make_login_entry("alice", "1.1.1.1", base);
+        det.analyze(&e1);
+
+        let e2 = make_login_entry("alice", "1.1.1.1", base + 60 * 1_000_000_000);
+        assert!(det.analyze(&e2).is_none());
+    }
+
+    #[test]
+    fn impossible_travel_ignores_slow_change() {
+        let det = ImpossibleTravelDetector::default();
+        let base = 1_000_000_000_000i64;
+        let e1 = make_login_entry("alice", "1.1.1.1", base);
+        det.analyze(&e1);
+
+        // بعد ساعتين — يعتبر ممكناً.
+        let e2 = make_login_entry("alice", "2.2.2.2", base + 2 * 3600 * 1_000_000_000);
+        assert!(det.analyze(&e2).is_none());
+    }
+
+    #[test]
+    fn impossible_travel_ignores_failed_login() {
+        let det = ImpossibleTravelDetector::default();
+        let base = 1_000_000_000_000i64;
+        let e1 = make_login_entry("alice", "1.1.1.1", base);
+        det.analyze(&e1);
+
+        let e2 = AuditEntry::new("alice", "login", "s")
+            .with_category(AuditCategory::Auth)
+            .with_success(false)
+            .with_timestamp(base + 60 * 1_000_000_000)
+            .with_metadata("ip", "2.2.2.2");
+        assert!(det.analyze(&e2).is_none());
+    }
+
+    #[test]
+    fn impossible_travel_ignores_no_ip() {
+        let det = ImpossibleTravelDetector::default();
+        let e = AuditEntry::new("alice", "login", "s")
+            .with_category(AuditCategory::Auth)
+            .with_success(true)
+            .with_timestamp(1000);
+        // لا IP في البيانات الوصفية.
+        assert!(det.analyze(&e).is_none());
+    }
+
+    #[test]
+    fn impossible_travel_tracks_multiple_users() {
+        let det = ImpossibleTravelDetector::default();
+        let base = 1_000_000_000_000i64;
+
+        let e1 = make_login_entry("alice", "1.1.1.1", base);
+        det.analyze(&e1);
+        let e2 = make_login_entry("bob", "2.2.2.2", base + 60 * 1_000_000_000);
+        det.analyze(&e2);
+
+        // bob يدخل من IP مختلف بسرعة.
+        let e3 = make_login_entry("bob", "3.3.3.3", base + 120 * 1_000_000_000);
+        assert!(det.analyze(&e3).is_some());
+
+        // alice لا يزال في نفس IP — لا تنبيه.
+        let e4 = make_login_entry("alice", "1.1.1.1", base + 180 * 1_000_000_000);
+        assert!(det.analyze(&e4).is_none());
+    }
+
+    #[test]
+    fn advanced_detector_names() {
+        let oh = OffHoursDetector::default();
+        let it = ImpossibleTravelDetector::default();
+        assert_eq!(oh.name(), "off_hours");
+        assert_eq!(it.name(), "impossible_travel");
+    }
+}
