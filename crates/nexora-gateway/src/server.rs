@@ -259,6 +259,10 @@ impl GatewayServer {
             .merge(protected_routes)
             .layer(axum::middleware::from_fn_with_state(
                 state.clone(),
+                crate::tracing_middleware::tracing_middleware,
+            ))
+            .layer(axum::middleware::from_fn_with_state(
+                state.clone(),
                 crate::auto_metrics::auto_metrics_middleware,
             ))
             .layer(CorsLayer::permissive())

@@ -52,6 +52,7 @@ pub mod sso;
 pub mod extended_routes;
 pub mod rate_limit;
 pub mod auto_metrics;
+pub mod tracing_middleware;
 
 #[cfg(test)]
 pub mod integration_tests;
