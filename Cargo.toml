@@ -22,6 +22,7 @@ members = [
     "crates/nexora-audit",
     "crates/nexora-security",
     "crates/nexora-monitoring",
+    "crates/nexora-tracing",
     "crates/nxp-cli",
     "demo",
 ]
