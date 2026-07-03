@@ -1326,3 +1326,476 @@ async fn audit_export_protected() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 }
+
+// ==================================================================
+// اختبارات Security Policies
+// ==================================================================
+
+#[tokio::test]
+async fn security_policies_list_empty() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/policies")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["total"], 0);
+}
+
+#[tokio::test]
+async fn security_policies_create_and_list() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+
+    // أنشئ سياسة.
+    {
+        let app = server.router();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/security/policies")
+                    .method("POST")
+                    .header("Authorization", format!("Bearer {token}"))
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(
+                        r#"{"name":"test-policy","policy_type":"rate_limit","action":"deny","resources":["api/billing/*"]}"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    // اعرض القائمة.
+    {
+        let app = server.router();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/security/policies")
+                    .header("Authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["total"], 1);
+        assert_eq!(json["enabled"], 1);
+    }
+}
+
+#[tokio::test]
+async fn security_policies_create_validates_name() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/policies")
+                .method("POST")
+                .header("Authorization", format!("Bearer {token}"))
+                .header("Content-Type", "application/json")
+                .body(Body::from(r#"{"name":"","policy_type":"custom","action":"allow"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn security_policies_evaluate() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/policies/evaluate?resource=api/test")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["allowed"], true);
+}
+
+#[tokio::test]
+async fn security_policies_delete_nonexistent() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/policies/nonexistent-id")
+                .method("DELETE")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn security_policies_toggle_nonexistent() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/policies/nonexistent-id/toggle")
+                .method("POST")
+                .header("Authorization", format!("Bearer {token}"))
+                .header("Content-Type", "application/json")
+                .body(Body::from(r#"{"enabled":false}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn security_policies_routes_protected() {
+    let server = setup_server();
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/policies")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+// ==================================================================
+// اختبارات Security Reports
+// ==================================================================
+
+#[tokio::test]
+async fn security_report_daily() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/reports/daily")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(json["report"]["total_alerts"].is_number());
+    assert!(json["report"]["summary"].as_str().unwrap().contains("يومي"));
+}
+
+#[tokio::test]
+async fn security_report_weekly() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/reports/weekly")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(json["report"]["summary"].as_str().unwrap().contains("أسبوعي"));
+}
+
+#[tokio::test]
+async fn security_report_monthly() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/reports/monthly")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(json["report"]["summary"].as_str().unwrap().contains("شهري"));
+}
+
+#[tokio::test]
+async fn security_report_invalid_period() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/reports/invalid")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn security_report_protected() {
+    let server = setup_server();
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/security/reports/daily")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+// ==================================================================
+// اختبارات WebAuthn
+// ==================================================================
+
+#[tokio::test]
+async fn webauthn_register_begin() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/auth/webauthn/register/begin")
+                .method("POST")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(!json["challenge"].as_str().unwrap().is_empty());
+    assert_eq!(json["expires_in_seconds"], 300);
+}
+
+#[tokio::test]
+async fn webauthn_list_credentials_empty() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/auth/webauthn/credentials")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["count"], 0);
+    assert_eq!(json["registered"], false);
+}
+
+#[tokio::test]
+async fn webauthn_stats() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/auth/webauthn/stats")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["registered_users"], 0);
+}
+
+#[tokio::test]
+async fn webauthn_delete_nonexistent_credential() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/auth/webauthn/credentials/nonexistent")
+                .method("DELETE")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn webauthn_routes_protected() {
+    let server = setup_server();
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/auth/webauthn/credentials")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn webauthn_full_registration_flow() {
+    let server = setup_server();
+    let (token, _) = get_token(&server).await;
+
+    // ابدأ التسجيل.
+    {
+        let app = server.router();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/auth/webauthn/register/begin")
+                    .method("POST")
+                    .header("Authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    // أكمل التسجيل.
+    {
+        let app = server.router();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/auth/webauthn/register/complete")
+                    .method("POST")
+                    .header("Authorization", format!("Bearer {token}"))
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(
+                        r#"{"credential_id":"cred-1","public_key":"pk-1","authenticator_type":"yubikey","label":"مفتاحي"}"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    // تحقق من القائمة.
+    {
+        let app = server.router();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/auth/webauthn/credentials")
+                    .header("Authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["count"], 1);
+        assert_eq!(json["registered"], true);
+    }
+}
