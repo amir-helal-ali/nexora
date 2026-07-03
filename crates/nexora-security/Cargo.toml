@@ -21,3 +21,4 @@ async-trait.workspace = true
 uuid.workspace = true
 time.workspace = true
 regex = "1.10"
+chrono = { version = "0.4", features = ["serde"] }

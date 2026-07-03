@@ -17,9 +17,13 @@
 pub mod alert;
 pub mod detector;
 pub mod engine;
+pub mod policies;
+pub mod reports;
 pub mod threat;
 
 pub use alert::{SecurityAlert, Severity, AlertStatus};
-pub use detector::{BruteForceDetector, AnomalyDetector, Detector};
+pub use detector::{BruteForceDetector, AnomalyDetector, Detector, OffHoursDetector, ImpossibleTravelDetector};
 pub use engine::{SecurityEngine, SecurityStats};
+pub use policies::{PolicyAction, PolicyEngine, PolicyEvaluation, PolicyType, SecurityPolicy};
+pub use reports::{ReportGenerator, ReportPeriod, SecurityReport};
 pub use threat::{ThreatType, ThreatIndicator};
