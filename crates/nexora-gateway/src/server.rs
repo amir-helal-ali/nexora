@@ -79,6 +79,10 @@ impl GatewayServer {
         );
         // Initialize security engine.
         let security_engine = Arc::new(nexora_security::SecurityEngine::new());
+        // Initialize policy engine.
+        let policy_engine = Arc::new(nexora_security::PolicyEngine::new());
+        // Initialize WebAuthn manager.
+        let webauthn_manager = Arc::new(nexora_auth::webauthn::WebAuthnManager::new());
         Self {
             state: GatewayState {
                 auth: auth_handler,
@@ -94,6 +98,8 @@ impl GatewayServer {
                 audit: audit_logger,
                 rules: Some(rules_engine),
                 security: security_engine,
+                policies: policy_engine,
+                webauthn: webauthn_manager,
                 ready: true,
             },
         }
@@ -198,6 +204,19 @@ impl GatewayServer {
             .route("/api/security/stats", get(crate::extended_routes::security_stats))
             // Audit export routes
             .route("/api/audit/export", get(crate::extended_routes::audit_export))
+            // Security policy routes
+            .route("/api/security/policies", get(crate::extended_routes::security_policies_list).post(crate::extended_routes::security_policies_create))
+            .route("/api/security/policies/evaluate", get(crate::extended_routes::security_policies_evaluate))
+            .route("/api/security/policies/:id", axum::routing::delete(crate::extended_routes::security_policies_delete))
+            .route("/api/security/policies/:id/toggle", post(crate::extended_routes::security_policies_toggle))
+            // Security report routes
+            .route("/api/security/reports/:period", get(crate::extended_routes::security_report))
+            // WebAuthn routes
+            .route("/api/auth/webauthn/register/begin", post(crate::extended_routes::webauthn_register_begin))
+            .route("/api/auth/webauthn/register/complete", post(crate::extended_routes::webauthn_register_complete))
+            .route("/api/auth/webauthn/credentials", get(crate::extended_routes::webauthn_list_credentials))
+            .route("/api/auth/webauthn/credentials/:id", axum::routing::delete(crate::extended_routes::webauthn_delete_credential))
+            .route("/api/auth/webauthn/stats", get(crate::extended_routes::webauthn_stats))
             .layer(from_fn_with_state(auth_middleware, require_token));
 
         Router::new()

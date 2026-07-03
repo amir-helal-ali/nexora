@@ -570,3 +570,277 @@ fn csv_escape(s: &str) -> String {
         s.to_string()
     }
 }
+
+// ==================================================================
+// Security Policy Routes
+// ==================================================================
+
+/// `GET /api/security/policies` — قائمة السياسات.
+pub async fn security_policies_list(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let policies = state.policies.list();
+    Json(json!({
+        "policies": policies,
+        "total": policies.len(),
+        "enabled": state.policies.enabled_count(),
+    }))
+    .into_response()
+}
+
+/// `POST /api/security/policies` — إنشاء سياسة.
+pub async fn security_policies_create(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+    Json(body): Json<serde_json::Value>,
+) -> AxumResponse {
+    let name = body.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let policy_type_str = body.get("policy_type").and_then(|v| v.as_str()).unwrap_or("custom");
+    let action_str = body.get("action").and_then(|v| v.as_str()).unwrap_or("allow");
+
+    if name.is_empty() {
+        return error_response(StatusCode::BAD_REQUEST, "اسم السياسة مطلوب");
+    }
+
+    let policy_type = match policy_type_str {
+        "require_mfa" => nexora_security::PolicyType::RequireMfa,
+        "account_lockout" => nexora_security::PolicyType::AccountLockout,
+        "max_sessions" => nexora_security::PolicyType::MaxSessions,
+        "time_restriction" => nexora_security::PolicyType::TimeRestriction,
+        "ip_restriction" => nexora_security::PolicyType::IpRestriction,
+        "rate_limit" => nexora_security::PolicyType::RateLimit,
+        "password_policy" => nexora_security::PolicyType::PasswordPolicy,
+        "password_expiry" => nexora_security::PolicyType::PasswordExpiry,
+        "session_policy" => nexora_security::PolicyType::SessionPolicy,
+        _ => nexora_security::PolicyType::Custom,
+    };
+
+    let action = match action_str {
+        "deny" => nexora_security::PolicyAction::Deny,
+        "warn" => nexora_security::PolicyAction::Warn,
+        "require_step_up" => nexora_security::PolicyAction::RequireStepUp,
+        _ => nexora_security::PolicyAction::Allow,
+    };
+
+    let mut policy = nexora_security::SecurityPolicy::new(name, policy_type, action);
+    if let Some(desc) = body.get("description").and_then(|v| v.as_str()) {
+        policy = policy.with_description(desc);
+    }
+    if let Some(resources) = body.get("resources").and_then(|v| v.as_array()) {
+        for r in resources {
+            if let Some(s) = r.as_str() {
+                policy = policy.with_resource(s);
+            }
+        }
+    }
+
+    let id = state.policies.register(policy);
+
+    state.audit.log(
+        AuditEntry::new(&ctx.user_id, "security.policy.create", &id)
+            .with_category(AuditCategory::Auth),
+    );
+
+    Json(json!({"id": id, "ok": true})).into_response()
+}
+
+/// `DELETE /api/security/policies/:id` — حذف سياسة.
+pub async fn security_policies_delete(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> AxumResponse {
+    if state.policies.remove(&id) {
+        state.audit.log(
+            AuditEntry::new(&ctx.user_id, "security.policy.delete", &id)
+                .with_category(AuditCategory::Auth),
+        );
+        Json(json!({"ok": true})).into_response()
+    } else {
+        error_response(StatusCode::NOT_FOUND, "سياسة غير موجودة")
+    }
+}
+
+/// `POST /api/security/policies/:id/toggle` — تفعيل/تعطيل سياسة.
+#[derive(Deserialize)]
+pub struct PolicyToggleBody {
+    pub enabled: bool,
+}
+
+pub async fn security_policies_toggle(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+    Path(id): Path<String>,
+    Json(body): Json<PolicyToggleBody>,
+) -> AxumResponse {
+    if state.policies.set_enabled(&id, body.enabled) {
+        state.audit.log(
+            AuditEntry::new(&ctx.user_id, "security.policy.toggle", &id)
+                .with_category(AuditCategory::Auth)
+                .with_metadata("enabled", &body.enabled.to_string()),
+        );
+        Json(json!({"ok": true, "enabled": body.enabled})).into_response()
+    } else {
+        error_response(StatusCode::NOT_FOUND, "سياسة غير موجودة")
+    }
+}
+
+/// `GET /api/security/policies/evaluate?resource=...` — تقييم السياسات.
+pub async fn security_policies_evaluate(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Query(params): Query<EvaluateParams>,
+) -> AxumResponse {
+    let resource = params.resource.unwrap_or_default();
+    let evaluation = state.policies.evaluate(&resource, None);
+    Json(json!({
+        "action": match evaluation.action {
+            nexora_security::PolicyAction::Allow => "allow",
+            nexora_security::PolicyAction::Deny => "deny",
+            nexora_security::PolicyAction::Warn => "warn",
+            nexora_security::PolicyAction::RequireStepUp => "require_step_up",
+        },
+        "allowed": evaluation.is_allowed(),
+        "reason": evaluation.reason,
+        "severity": evaluation.severity.as_str(),
+        "policy_id": evaluation.policy_id,
+    }))
+    .into_response()
+}
+
+#[derive(Deserialize)]
+pub struct EvaluateParams {
+    pub resource: Option<String>,
+}
+
+// ==================================================================
+// Security Report Routes
+// ==================================================================
+
+/// `GET /api/security/reports/:period` — توليد تقرير أمني.
+pub async fn security_report(
+    State(state): State<GatewayState>,
+    _ctx: axum::Extension<AuthContext>,
+    Path(period_str): Path<String>,
+) -> AxumResponse {
+    let period = match period_str.as_str() {
+        "daily" => nexora_security::ReportPeriod::Daily,
+        "weekly" => nexora_security::ReportPeriod::Weekly,
+        "monthly" => nexora_security::ReportPeriod::Monthly,
+        _ => return error_response(StatusCode::BAD_REQUEST, "فترة غير صالحة (daily/weekly/monthly)"),
+    };
+
+    let alerts = state.security.list_alerts();
+    let audit_filter = nexora_audit::AuditFilter::new().with_limit(10000);
+    let audit_result = state.audit.query(&audit_filter);
+
+    let report = nexora_security::ReportGenerator::generate(
+        period,
+        &alerts,
+        &audit_result.entries,
+    );
+
+    Json(json!({
+        "report": report,
+    }))
+    .into_response()
+}
+
+// ==================================================================
+// WebAuthn Routes
+// ==================================================================
+
+/// `POST /api/auth/webauthn/register/begin` — بدء تسجيل مفتاح أمني.
+pub async fn webauthn_register_begin(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let challenge = state.webauthn.begin_registration(&ctx.user_id);
+    state.audit.log(
+        AuditEntry::new(&ctx.user_id, "webauthn.register.begin", &ctx.user_id)
+            .with_category(AuditCategory::Auth),
+    );
+    Json(json!({
+        "challenge": challenge.challenge,
+        "expires_in_seconds": 300,
+    }))
+    .into_response()
+}
+
+/// `POST /api/auth/webauthn/register/complete` — إكمال تسجيل مفتاح أمني.
+#[derive(Deserialize)]
+pub struct WebAuthnRegisterCompleteBody {
+    pub credential_id: String,
+    pub public_key: String,
+    pub authenticator_type: String,
+    pub label: String,
+}
+
+pub async fn webauthn_register_complete(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+    Json(body): Json<WebAuthnRegisterCompleteBody>,
+) -> AxumResponse {
+    match state.webauthn.complete_registration(
+        &ctx.user_id,
+        "response",
+        &body.credential_id,
+        &body.public_key,
+        &body.authenticator_type,
+        &body.label,
+    ) {
+        Ok(result) => {
+            state.audit.log(
+                AuditEntry::new(&ctx.user_id, "webauthn.register.complete", &result.credential_id)
+                    .with_category(AuditCategory::Auth),
+            );
+            Json(json!({
+                "ok": true,
+                "credential_id": result.credential_id,
+                "label": result.label,
+            }))
+            .into_response()
+        }
+        Err(e) => error_response(StatusCode::BAD_REQUEST, &e),
+    }
+}
+
+/// `GET /api/auth/webauthn/credentials` — قائمة مفاتيح الأمان.
+pub async fn webauthn_list_credentials(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+) -> AxumResponse {
+    let creds = state.webauthn.list_credentials(&ctx.user_id);
+    Json(json!({
+        "credentials": creds,
+        "count": creds.len(),
+        "registered": state.webauthn.is_registered(&ctx.user_id),
+    }))
+    .into_response()
+}
+
+/// `DELETE /api/auth/webauthn/credentials/:id` — حذف مفتاح أمان.
+pub async fn webauthn_delete_credential(
+    State(state): State<GatewayState>,
+    ctx: axum::Extension<AuthContext>,
+    Path(cred_id): Path<String>,
+) -> AxumResponse {
+    if state.webauthn.remove_credential(&ctx.user_id, &cred_id) {
+        state.audit.log(
+            AuditEntry::new(&ctx.user_id, "webauthn.credential.delete", &cred_id)
+                .with_category(AuditCategory::Auth),
+        );
+        Json(json!({"ok": true})).into_response()
+    } else {
+        error_response(StatusCode::NOT_FOUND, "مفتاح غير موجود")
+    }
+}
+
+/// `GET /api/auth/webauthn/stats` — إحصائيات WebAuthn.
+pub async fn webauthn_stats(State(state): State<GatewayState>) -> AxumResponse {
+    Json(json!({
+        "registered_users": state.webauthn.registered_count(),
+    }))
+    .into_response()
+}
