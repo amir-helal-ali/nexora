@@ -579,3 +579,494 @@ async fn openapi_spec_works() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
 }
+
+// ==================================================================
+// اختبارات MFA
+// ==================================================================
+
+#[tokio::test]
+async fn mfa_status_unenrolled() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/auth/mfa/status")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["enrolled"], false);
+}
+
+#[tokio::test]
+async fn mfa_enroll_begin_returns_secret() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/auth/mfa/enroll/begin")
+                .method("POST")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(json["secret"].as_str().unwrap().len() > 10);
+    assert!(json["otpauth_url"].as_str().unwrap().starts_with("otpauth://"));
+    assert!(json["backup_codes"].is_array());
+}
+
+#[tokio::test]
+async fn mfa_verify_unenrolled_returns_not_enrolled() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/auth/mfa/verify")
+                .method("POST")
+                .header("Authorization", format!("Bearer {token}"))
+                .header("Content-Type", "application/json")
+                .body(Body::from(r#"{"code":"123456"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["valid"], false);
+    assert!(json["message"].as_str().unwrap().contains("غير مُفعّل"));
+}
+
+#[tokio::test]
+async fn mfa_disable_without_enrollment() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/auth/mfa/disable")
+                .method("POST")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["was_enabled"], false);
+}
+
+#[tokio::test]
+async fn mfa_stats() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/auth/mfa/stats")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["enrolled_users"], 0);
+}
+
+#[tokio::test]
+async fn mfa_routes_protected() {
+    let server = setup_server();
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/auth/mfa/status")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+// ==================================================================
+// اختبارات Audit
+// ==================================================================
+
+#[tokio::test]
+async fn audit_stats_initially_empty() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/audit/stats")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(json["total"].is_number());
+}
+
+#[tokio::test]
+async fn audit_list_returns_entries() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+
+    // أنشئ بعض مدخلات التدقيق عبر مسار MFA.
+    {
+        let app = server.router();
+        let _ = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/auth/mfa/enroll/begin")
+                    .method("POST")
+                    .header("Authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+    }
+
+    // استعلم عن المدخلات.
+    let app = server.router();
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/audit/entries?limit=10")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(json["total"].as_u64().unwrap() > 0);
+    assert!(json["entries"].is_array());
+}
+
+#[tokio::test]
+async fn audit_list_filter_by_action() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+
+    // أنشئ مدخلات.
+    {
+        let app = server.router();
+        let _ = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/auth/mfa/enroll/begin")
+                    .method("POST")
+                    .header("Authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+    }
+
+    // فلتر بالإجراء.
+    let app = server.router();
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/audit/entries?action=mfa.enroll.begin")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(json["total"].as_u64().unwrap() > 0);
+}
+
+#[tokio::test]
+async fn audit_get_nonexistent_returns_404() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/audit/nonexistent-id")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn audit_routes_protected() {
+    let server = setup_server();
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/audit/entries")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+// ==================================================================
+// اختبارات Rules
+// ==================================================================
+
+#[tokio::test]
+async fn rules_list_empty() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/rules")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["count"], 0);
+}
+
+#[tokio::test]
+async fn rules_create_and_list() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+
+    // أنشئ قاعدة.
+    {
+        let app = server.router();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/rules")
+                    .method("POST")
+                    .header("Authorization", format!("Bearer {token}"))
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(
+                        r#"{"name":"test-rule","condition":{"kind":{"type":"always"}},"actions":[]}"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    // اعرض القائمة.
+    {
+        let app = server.router();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/rules")
+                    .header("Authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["count"], 1);
+    }
+}
+
+#[tokio::test]
+async fn rules_stats() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/rules/stats")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(json["total_rules"].is_number());
+    assert!(json["enabled_rules"].is_number());
+}
+
+#[tokio::test]
+async fn rules_get_nonexistent_returns_404() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/rules/nonexistent-id")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn rules_delete_nonexistent_returns_404() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/rules/nonexistent-id")
+                .method("DELETE")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn rules_routes_protected() {
+    let server = setup_server();
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/rules")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn rules_enable_nonexistent_returns_404() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/rules/nonexistent/enable")
+                .method("POST")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn rules_disable_nonexistent_returns_404() {
+    let server = setup_server();
+    let (token, _user_id) = get_token(&server).await;
+    let app = server.router();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/rules/nonexistent/disable")
+                .method("POST")
+                .header("Authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
