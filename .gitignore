@@ -1,7 +1,7 @@
 # Rust
 /target/
 **/*.rs.bk
-Cargo.lock
+# Cargo.lock مهم للبناء القابل للتكرار — لا نتجاهله
 
 # Node / SvelteKit
 /frontend/node_modules/

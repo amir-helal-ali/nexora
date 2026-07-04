@@ -1,30 +1,30 @@
-//! Nexora API Gateway — HTTP ↔ NXP translation layer.
+//! بوابة Nexora API — طبقة ترجمة HTTP ↔ NXP.
 //!
-//! See Nexora Engineering Specification, Part 6 (BACKEND ARCHITECTURE):
-//! "External communication ONLY via API Gateway." This gateway is the only
-//! HTTP surface of the platform. Every HTTP request is translated into an
-//! NXP command and dispatched to the appropriate service (Auth, Core, etc.).
+//! انظر مواصفة Nexora الهندسية، الجزء 6 (بنية الخلفية):
+//! "التواصل الخارجي فقط عبر بوابة API." هذه البوابة هي السطح HTTP الوحيد
+//! للمنصة. كل طلب HTTP يُترجم إلى أمر NXP ويُرسل إلى الخدمة المناسبة
+//! (المصادقة، النواة، إلخ).
 //!
-//! # Architecture
+//! # البنية المعمارية
 //!
 //! ```text
-//!  Browser / curl / external HTTP client
+//!  متصفح / curl / عميل HTTP خارجي
 //!                  │
 //!                  ▼
 //!         ┌─────────────────┐
-//!         │   API Gateway   │  ← axum HTTP server
-//!         │   (this crate)  │
+//!         │   بوابة API     │  ← خادم axum HTTP
+//!         │   (هذه الـ crate)│
 //!         └────────┬────────┘
-//!                  │ JSON → MessagePack translation
-//!                  │ Bearer token validation
+//!                  │ ترجمة JSON → MessagePack
+//!                  │ التحقق من رمز Bearer
 //!                  ▼
 //!         ┌─────────────────┐
-//!         │  AuthHandler    │  ← in-process (no NXP round-trip)
+//!         │  AuthHandler    │  ← في العملية (لا ذهاب-إياب NXP)
 //!         │  CoreHandler    │
 //!         └─────────────────┘
 //! ```
 //!
-//! # Routing
+//! # التوجيه
 //!
 //! - `POST /api/auth/login`     → AUTH_LOGIN
 //! - `POST /api/auth/logout`    → AUTH_LOGOUT
@@ -32,14 +32,14 @@
 //! - `POST /api/core/ping`      → PING
 //! - `POST /api/core/events`    → PUBLISH_EVENT
 //! - `GET  /api/core/events`    → REPLAY_EVENTS
-//! - `GET  /api/health`         → gateway liveness
-//! - `GET  /api/openapi.json`   → OpenAPI 3.0 spec
+//! - `GET  /api/health`         → فحص حياة البوابة
+//! - `GET  /api/openapi.json`   → مواصفات OpenAPI 3.0
 //!
-//! # Token Middleware
+//! # برمجيات الرمز الوسيطة
 //!
-//! All routes EXCEPT `/api/auth/login`, `/api/auth/refresh`, `/api/health`,
-//! and `/api/openapi.json` require a `Authorization: Bearer <token>` header.
-//! The token is verified against the AuthHandler's TokenVerifier.
+//! كل المسارات عدا `/api/auth/login`، `/api/auth/refresh`، `/api/health`،
+//! و `/api/openapi.json` تتطلب ترويسة `Authorization: Bearer <token>`.
+//! يُتحقَّق من الرمز مقابل مدقق الرموز في AuthHandler.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
@@ -48,5 +48,13 @@ pub mod middleware;
 pub mod routes;
 pub mod server;
 pub mod spec;
+pub mod sso;
+pub mod extended_routes;
+pub mod rate_limit;
+pub mod auto_metrics;
+pub mod tracing_middleware;
+
+#[cfg(test)]
+pub mod integration_tests;
 
 pub use server::GatewayServer;

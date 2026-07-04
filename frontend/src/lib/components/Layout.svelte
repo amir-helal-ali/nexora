@@ -6,11 +6,24 @@
   let paletteOpen = $state(false);
 
   const navItems = [
+    { href: '/dashboard', label: 'Executive' },
     { href: '/', label: 'Dashboard' },
     { href: '/events', label: 'Events' },
     { href: '/modules', label: 'Modules' },
     { href: '/marketplace', label: 'Marketplace' },
     { href: '/billing', label: 'Billing' },
+    { href: '/notifications', label: 'Notifications' },
+    { href: '/rules', label: 'Rules' },
+    { href: '/audit', label: 'Audit' },
+    { href: '/security', label: 'Security' },
+    { href: '/policies', label: 'Policies' },
+    { href: '/reports', label: 'Reports' },
+    { href: '/tracing', label: 'Tracing' },
+    { href: '/loadtest', label: 'LoadTest' },
+    { href: '/monitoring', label: 'Monitoring' },
+    { href: '/mfa', label: 'MFA' },
+    { href: '/webauthn', label: 'WebAuthn' },
+    { href: '/sso', label: 'SSO' },
     { href: '/terminal', label: 'Terminal' },
     { href: '/health', label: 'Health' },
   ];

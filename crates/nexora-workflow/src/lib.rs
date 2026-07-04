@@ -1,19 +1,18 @@
-//! Nexora Workflow Engine — event-driven automation pipelines.
+//! محرك سير عمل Nexora — خطوط أتمتة يحركها الأحداث.
 //!
-//! See Nexora Engineering Specification, Part 4 (WORKFLOW ENGINE).
-//! Workflows are sequences of steps that execute automatically when triggered
-//! by events. Each step can publish events, wait for conditions, or call
-//! external actions.
+//! انظر مواصفة Nexora الهندسية، الجزء 4 (محرك سير العمل).
+//! سير العمل هو تسلسل خطوات تُنفَّذ تلقائياً عند تشغيلها بأحداث.
+//! كل خطوة يمكنها نشر أحداث، انتظار شروط، أو استدعاء إجراءات خارجية.
 //!
-//! # Example
+//! # مثال
 //!
 //! ```text
-//! Workflow: "Welcome new user"
-//!   Trigger: user.created
-//!   Steps:
-//!     1. Publish "notification.welcome" with payload from trigger
-//!     2. Publish "billing.create_trial_invoice"
-//!     3. Publish "analytics.track" with event="signup"
+//! سير عمل: "ترحيب بمستخدم جديد"
+//!   المُشغِّل: user.created
+//!   الخطوات:
+//!     1. انشر "notification.welcome" بحمولة من المُشغِّل
+//!     2. انشر "billing.create_trial_invoice"
+//!     3. انشر "analytics.track" مع event="signup"
 //! ```
 
 #![forbid(unsafe_code)]

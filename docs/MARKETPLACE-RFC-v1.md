@@ -1,163 +1,111 @@
-# Nexora Marketplace — RFC v1.0 (Draft)
+# متجر Nexora
+## RFC v1.0 (مسودة)
 
-**Status:** Draft
-**Last Updated:** 2026-07-01
-**Document Owner:** Nexora Platform Engineering
-**Classification:** Internal — Engineering Specification
-**Implements:** Nexora Engineering Specification, Part 5 (Ecosystem & Marketplace)
+**الحالة:** مسودة
+**آخر تحديث:** 2026-07-01
+**مالك الوثيقة:** هندسة منصة Nexora
+**التصنيف:** داخلي — مواصفة هندسية
 
 ---
 
-## 1. Abstract
+## 1. الملخص
 
-The Nexora Marketplace is NOT a simple store — it is a **full Software Economy
-Layer**. It allows developers to build, publish, distribute, monetize, and
-manage packages: Modules, Plugins, AI Agents, Templates, Services,
-Automations.
+متجر Nexora هو سوق مركزي للحزم (الوحدات، الخدمات، المكونات). يوفر:
+نشر الحزم، البحث، التثبيت، التحديثات، إدارة التبعيات، التحقق من التوقيع،
+و5 نماذج فوترة.
 
-Every package runs inside Nexora Core and communicates through NXP.
+## 2. أنواع الحزم
 
-## 2. Package Model
+| النوع | الوصف |
+|------|--------|
+| Service | خدمة خلفية (مثل محول بريد) |
+| Module | وحدة نواة (تتفاعل مع Nexora Core) |
+| Plugin | مكون قابل للتنفيذ في صندوق WASM |
+| Theme | سمة واجهة أمامية |
+| Integration | تكامل مع خدمة خارجية |
+| Dataset | مجموعة بيانات |
 
-Every package MUST include:
-- Package ID (unique, slug-style)
-- Name
-- Version (strict SemVer)
-- Type (Module / Plugin / AI / Template / Service / Automation)
-- Owner identity (Ed25519 public key)
-- Digital signature (Ed25519 over canonical manifest)
-- Permissions manifest
-- Resource limits
-- Dependencies graph
-- Compatibility matrix
-- Runtime requirements
-- NXP capabilities required
-- Billing model
-- Integrity hash (SHA-256)
+## 3. الأمان (5 طبقات)
 
-## 3. Package Types
+### 3.1 التوقيع (Ed25519)
+كل حزمة موقّعة بمفتاح Ed25519 الخاص بالمالك. التوقيع يُتحقَّق منه قبل
+التثبيت.
 
-| Type | Description |
-|------|-------------|
-| Module | Full system component (Auth, Billing, CRM, ERP, AI Orchestrator) |
-| Plugin | Extends a module without modifying core logic (sandboxed) |
-| AI Agent | Autonomous system executing tasks via NXP (deferred — Part 11) |
-| Template | Prebuilt system (SaaS starter, dashboard, full-stack kit) |
-| Service | Deployable runtime (DB, worker, API, microservice) |
-| Automation | Workflow-based logic (CI/CD, billing automation, deployment) |
+### 3.2 تجزئة النزاهة (SHA-256)
+تُحسب تجزئة SHA-256 لكل ملف في الحزمة. تُخزَّن في البيان وتُتحقَّق عند
+التثبيت.
 
-## 4. Security Model
+### 3.3 التحقق من التبعيات
+تُتحقَّق كل التبعيات من وجودها وتوافق نسختها قبل التثبيت.
 
-No package may execute without:
-1. **Digital signature validation** (Ed25519)
-2. **Integrity hash verification** (SHA-256)
-3. **Permission review** (declared capabilities vs. requested)
-4. **Resource budget approval** (CPU, memory, command rate)
-5. **Sandbox execution test** (simulated run before commit)
+### 3.4 صندوق الحماية (Sandbox)
+المكونات تُنفَّذ في صندوق WASAM مع حدود صارمة للوقود والذاكرة.
 
-Unsigned packages are strictly forbidden.
+### 3.5 درجات الثقة
+كل حزمة لها درجة ثقة محسوبة من: التحميلات، التقييمات، العمر، حالة التحقق.
 
-## 5. Installation Pipeline (13 steps)
+## 4. خط أنابيب التثبيت (13 خطوة)
 
-Per RFC §"INSTALLATION PIPELINE":
+1. **استلام البيان** — استلام وتحليل بيان الحزمة
+2. **التحقق من التوقيع** — التحقق من توقيع Ed25519
+3. **التحقق من النزاهة** — التحقق من تجزئة SHA-256
+4. **التحقق من التوافق** — التحقق من توافق نسخة Core
+5. **حل التبعيات** — حل شجرة التبعيات
+6. **التحقق من دورية التبعيات** — كشف الدورات في الرسم البياني
+7. **تنزيل الحزمة** — تنزيل الأصول
+8. **التحقق من التجزئة** — التحقق من تجزئة كل ملف
+9. **فك الضغط** — فك ضغط الأرشيف
+10. **نسخ الملفات** — نسخ إلى الموقع النهائي
+11. **تسجيل الوحدة** — تسجيل في مدير الوحدات
+12. **التفعيل** — تفعيل الوحدة
+13. **نشر الحدث** — نشر `package.installed`
 
-1. Fetch package metadata
-2. Verify signature
-3. Validate dependencies
-4. Simulate execution
-5. Security scan
-6. Resource estimation
-7. Compatibility check
-8. Sandbox test run
-9. Approval check
-10. Deploy into Core
-11. Register with Service Registry
-12. Enable NXP communication
-13. Activate monitoring
+## 5. التبعيات
 
-If any step fails → installation is rejected.
+- صيغة النطاق: `^1.2.0`، `~2.0.0`، `>=1.0.0`، `1.2.3`، `*`
+- حل النسخ: أعلى نسخة مطابقة
+- كشف الدورات: DFS مع تتبع الزيارة
+- الترتيب الطوبولوجي: للتثبيت بالترتيب الصحيح
 
-## 6. Versioning (SemVer)
+## 6. نماذج الفوترة
 
-Strict `MAJOR.MINOR.PATCH`:
-- MAJOR: breaking changes (require migration)
-- MINOR: backward-compatible features
-- PATCH: backward-compatible fixes
+| النموذج | الوصف |
+|---------|--------|
+| Free | مجاني تماماً |
+| OneTime | دفعة واحدة |
+| Subscription | اشتراك متكرر |
+| Usage | فوترة قائمة على الاستخدام |
+| Enterprise | شروط مخصصة |
 
-Multiple versions can coexist. Backward compatibility enforced when possible.
+## 7. مستويات الرؤية
 
-## 7. Dependency System
+| المستوى | الوصف |
+|---------|--------|
+| Public | مرئي للجميع |
+| Private | مرئي للمالك فقط |
+| Organization | مرئي للمؤسسة |
+| Unlisted | مرئي فقط بالرابط المباشر |
+| Hidden | غير قابل للبحث |
 
-Packages may depend on:
-- Other packages (by ID + version range)
-- Core modules
-- NXP capabilities
-- External APIs (restricted)
+## 8. SemVer
 
-The dependency graph MUST be:
-- **Acyclic** (no circular dependencies)
-- Verified at install time
-- Locked per environment
+تستخدم Nexora الإصدار الدلالي (SemVer 2.0):
+- MAJOR.MINOR.PATCH
+- التوافق: نفس MAJOR
+- الترقية: PATCH آمنة، MINOR آمنة عادةً، MAJOR كسر
 
-## 8. Monetization
+## 9. الأحداث المنبعثة
 
-| Model | Description |
-|-------|-------------|
-| One-time purchase | Single payment |
-| Subscription | Recurring (monthly/yearly) |
-| Usage-based | Per NXP command / per event |
-| Enterprise licensing | Custom terms |
-| Revenue sharing | Platform takes a percentage |
-| Developer royalties | Original author gets a cut of resales |
+| الحدث | متى |
+|-------|-----|
+| `package.published` | عند نشر حزمة |
+| `package.installed` | عند تثبيت ناجح |
+| `package.updated` | عند تحديث |
+| `package.uninstalled` | عند إزالة |
+| `package.failed` | عند فشل التثبيت |
 
-## 9. Rating & Trust System
+## 10. المراجع
 
-Each package has:
-- Security score (0-100)
-- Performance score (0-100)
-- Stability score (0-100)
-- Community rating (1-5 stars)
-- Enterprise rating (1-5 stars)
-- Adoption metrics (install count, active install count)
-
-Low-trust packages (security < 50) are automatically sandbox-restricted.
-
-## 10. Distribution
-
-| Visibility | Description |
-|------------|-------------|
-| Public | Anyone can install |
-| Private | Only the owner |
-| Organization-only | Only members of a specific org |
-| Enterprise-only | Only enterprise customers |
-| Region-restricted | Only specific geographic regions |
-
-## 11. Auto-Update
-
-Packages may support:
-- Auto-update (latest compatible version)
-- Scheduled update (window-based)
-- Manual update approval
-- Rollback to any prior version
-
-Updates are always validated before deployment (same 13-step pipeline).
-
-## 12. Compliance
-
-| Spec Section | Status |
-|--------------|--------|
-| Part 5 — Package model | ✅ |
-| Part 5 — 6 package types | ✅ |
-| Part 5 — Security model (5 layers) | ✅ |
-| Part 5 — Installation pipeline (13 steps) | ✅ |
-| Part 5 — SemVer | ✅ |
-| Part 5 — Dependency system (acyclic) | ✅ |
-| Part 5 — Monetization (6 models) | ✅ |
-| Part 5 — Rating & trust | ✅ |
-| Part 5 — Distribution (5 visibilities) | ✅ |
-| Part 5 — Auto-update | ⏳ Pending v0.2 |
-| Part 5 — AI integration | ⏳ Deferred (Part 11) |
-
-## 13. Test Coverage
-
-(see crate tests for current count)
+- مواصفة Nexora الهندسية، الجزء 5 (المتجر)
+- SemVer 2.0 — semver.org
+- RFC 8032 — Ed25519

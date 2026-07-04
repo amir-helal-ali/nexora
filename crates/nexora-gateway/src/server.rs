@@ -13,11 +13,14 @@ use crate::routes::{
     billing_succeed_payment, billing_stats, cluster_heartbeat, cluster_list, cluster_pick,
     cluster_register, cluster_stats, core_event_stream, core_get_module, core_health,
     core_list_modules, core_list_sessions, core_ping, core_publish_event, core_replay_events,
-    health, marketplace_check_updates, marketplace_get, marketplace_install, marketplace_list,
-    marketplace_list_installed, marketplace_process_auto_updates, marketplace_publish,
-    marketplace_rollback_package, marketplace_search, marketplace_uninstall,
-    marketplace_update_package, openapi, workflow_get, workflow_list, workflow_list_executions,
-    workflow_register, workflow_stats, workflow_trigger, ws_handler, GatewayState,
+    graphql_handler, graphql_handler_playground, health, marketplace_check_updates,
+    marketplace_get, marketplace_install, marketplace_list, marketplace_list_installed,
+    marketplace_process_auto_updates, marketplace_publish, marketplace_rollback_package,
+    marketplace_search, marketplace_uninstall, marketplace_update_package, notifications_delete,
+    notifications_list, notifications_mark_all_read, notifications_mark_read, notifications_send,
+    notifications_stats, notifications_unread_count, openapi, workflow_get, workflow_list,
+    workflow_list_executions, workflow_register, workflow_stats, workflow_trigger, ws_handler,
+    GatewayState,
 };
 use axum::{
     middleware::from_fn_with_state,
@@ -53,6 +56,7 @@ impl GatewayServer {
         billing: Arc<nexora_billing::BillingService>,
         workflow: Arc<nexora_workflow::WorkflowService>,
         cluster: Arc<nexora_cluster::ClusterService>,
+        notifications: Arc<nexora_notifications::NotificationService>,
     ) -> Self {
         let auth_handler = Arc::new(nexora_auth::AuthHandler::new(auth.clone()));
         let core_handler = Arc::new(nexora_core::CoreHandler::new(core.clone()));
@@ -60,6 +64,33 @@ impl GatewayServer {
         let billing_handler = Arc::new(billing.handler());
         let workflow_handler = Arc::new(workflow.handler());
         let cluster_handler = Arc::new(cluster.handler());
+        // Build the GraphQL schema.
+        let graphql_schema = nexora_graphql::build_schema(core.clone());
+        // Initialize SSO state (empty by default — providers added via admin API).
+        let sso_state = Arc::new(crate::sso::SsoState::empty());
+        // Initialize MFA manager.
+        let mfa_manager = Arc::new(nexora_auth::mfa::MfaManager::new());
+        // Initialize audit logger (100k entries max).
+        let audit_logger = Arc::new(nexora_audit::AuditLogger::default());
+        // Initialize rules engine (linked to EventBus + Notifications).
+        let rules_engine = Arc::new(
+            nexora_rules::RuleEngine::new(core.events_inner())
+                .with_notifications(notifications.clone()),
+        );
+        // Initialize security engine.
+        let security_engine = Arc::new(nexora_security::SecurityEngine::new());
+        // Initialize policy engine.
+        let policy_engine = Arc::new(nexora_security::PolicyEngine::new());
+        // Initialize WebAuthn manager.
+        let webauthn_manager = Arc::new(nexora_auth::webauthn::WebAuthnManager::new());
+        // Initialize monitor.
+        let monitor = Arc::new(nexora_monitoring::Monitor::new());
+        // Initialize performance alerter with defaults.
+        let alerter = Arc::new(nexora_monitoring::PerformanceAlerter::new().with_defaults());
+        // Initialize report scheduler.
+        let scheduler = Arc::new(nexora_monitoring::ReportScheduler::new());
+        // Initialize distributed tracer.
+        let tracer = Arc::new(nexora_tracing::Tracer::new());
         Self {
             state: GatewayState {
                 auth: auth_handler,
@@ -68,6 +99,19 @@ impl GatewayServer {
                 billing: billing_handler,
                 workflow: workflow_handler,
                 cluster: cluster_handler,
+                notifications,
+                graphql: Some(Arc::new(graphql_schema)),
+                sso: Some(sso_state),
+                mfa: mfa_manager,
+                audit: audit_logger,
+                rules: Some(rules_engine),
+                security: security_engine,
+                policies: policy_engine,
+                webauthn: webauthn_manager,
+                monitor,
+                alerter,
+                scheduler,
+                tracer,
                 ready: true,
             },
         }
@@ -84,7 +128,16 @@ impl GatewayServer {
             .route("/api/openapi.json", get(openapi))
             .route("/api/auth/login", post(auth_login))
             .route("/api/auth/refresh", post(auth_refresh))
-            .route("/api/ws", get(ws_handler));
+            .route("/api/ws", get(ws_handler))
+            // GraphQL endpoint (POST for queries/mutations, GET for Playground HTML)
+            .route("/api/graphql", post(graphql_handler).get(graphql_handler_playground))
+            // Prometheus metrics export (public — no auth for scrape compatibility)
+            .route("/api/monitoring/prometheus", get(crate::extended_routes::monitoring_prometheus))
+            // SSO public routes (login flow + callbacks)
+            .route("/api/auth/sso/oidc/:provider/login", get(crate::sso::sso_oidc_login))
+            .route("/api/auth/sso/oidc/:provider/callback", get(crate::sso::sso_oidc_callback))
+            .route("/api/auth/sso/saml/:provider/login", get(crate::sso::sso_saml_login))
+            .route("/api/auth/sso/saml/:provider/acs", post(crate::sso::sso_saml_acs));
 
         // Protected routes — Bearer token required.
         let protected_routes = Router::new()
@@ -126,11 +179,93 @@ impl GatewayServer {
             .route("/api/cluster/nodes/:id/heartbeat", post(cluster_heartbeat))
             .route("/api/cluster/stats", get(cluster_stats))
             .route("/api/cluster/pick", get(cluster_pick))
+            // Notification routes
+            .route("/api/notifications", get(notifications_list).post(notifications_send))
+            .route("/api/notifications/unread-count", get(notifications_unread_count))
+            .route("/api/notifications/stats", get(notifications_stats))
+            .route("/api/notifications/:id/read", post(notifications_mark_read))
+            .route("/api/notifications/read-all", post(notifications_mark_all_read))
+            .route("/api/notifications/:id", axum::routing::delete(notifications_delete))
+            // SSO management routes (admin only — require Bearer token)
+            .route("/api/auth/sso/providers", get(crate::sso::sso_list_providers))
+            .route("/api/auth/sso/stats", get(crate::sso::sso_stats))
+            .route("/api/auth/sso/logout", post(crate::sso::sso_logout))
+            // MFA routes
+            .route("/api/auth/mfa/enroll/begin", post(crate::extended_routes::mfa_enroll_begin))
+            .route("/api/auth/mfa/enroll/complete", post(crate::extended_routes::mfa_enroll_complete))
+            .route("/api/auth/mfa/verify", post(crate::extended_routes::mfa_verify))
+            .route("/api/auth/mfa/disable", post(crate::extended_routes::mfa_disable))
+            .route("/api/auth/mfa/status", get(crate::extended_routes::mfa_status))
+            .route("/api/auth/mfa/backup-codes/regenerate", post(crate::extended_routes::mfa_regenerate_backup_codes))
+            .route("/api/auth/mfa/stats", get(crate::extended_routes::mfa_stats))
+            // Audit routes
+            .route("/api/audit/entries", get(crate::extended_routes::audit_list))
+            .route("/api/audit/stats", get(crate::extended_routes::audit_stats))
+            .route("/api/audit/:id", get(crate::extended_routes::audit_get))
+            // Rules routes
+            .route("/api/rules", get(crate::extended_routes::rules_list).post(crate::extended_routes::rules_create))
+            .route("/api/rules/stats", get(crate::extended_routes::rules_stats))
+            .route("/api/rules/:id", get(crate::extended_routes::rules_get))
+            .route("/api/rules/:id", axum::routing::delete(crate::extended_routes::rules_delete))
+            .route("/api/rules/:id/enable", post(crate::extended_routes::rules_enable))
+            .route("/api/rules/:id/disable", post(crate::extended_routes::rules_disable))
+            // Security routes
+            .route("/api/security/alerts", get(crate::extended_routes::security_alerts_list))
+            .route("/api/security/alerts/active", get(crate::extended_routes::security_alerts_active))
+            .route("/api/security/alerts/:id", get(crate::extended_routes::security_alert_get))
+            .route("/api/security/alerts/:id/resolve", post(crate::extended_routes::security_alert_resolve))
+            .route("/api/security/alerts/:id/dismiss", post(crate::extended_routes::security_alert_dismiss))
+            .route("/api/security/stats", get(crate::extended_routes::security_stats))
+            // Audit export routes
+            .route("/api/audit/export", get(crate::extended_routes::audit_export))
+            // Security policy routes
+            .route("/api/security/policies", get(crate::extended_routes::security_policies_list).post(crate::extended_routes::security_policies_create))
+            .route("/api/security/policies/evaluate", get(crate::extended_routes::security_policies_evaluate))
+            .route("/api/security/policies/:id", axum::routing::delete(crate::extended_routes::security_policies_delete))
+            .route("/api/security/policies/:id/toggle", post(crate::extended_routes::security_policies_toggle))
+            // Security report routes
+            .route("/api/security/reports/:period", get(crate::extended_routes::security_report))
+            // WebAuthn routes
+            .route("/api/auth/webauthn/register/begin", post(crate::extended_routes::webauthn_register_begin))
+            .route("/api/auth/webauthn/register/complete", post(crate::extended_routes::webauthn_register_complete))
+            .route("/api/auth/webauthn/credentials", get(crate::extended_routes::webauthn_list_credentials))
+            .route("/api/auth/webauthn/credentials/:id", axum::routing::delete(crate::extended_routes::webauthn_delete_credential))
+            .route("/api/auth/webauthn/stats", get(crate::extended_routes::webauthn_stats))
+            // Monitoring routes
+            .route("/api/monitoring/snapshot", get(crate::extended_routes::monitoring_snapshot))
+            .route("/api/monitoring/metrics", get(crate::extended_routes::monitoring_metrics))
+            .route("/api/monitoring/paths", get(crate::extended_routes::monitoring_paths))
+            .route("/api/monitoring/health", get(crate::extended_routes::monitoring_health))
+            .route("/api/monitoring/reset", post(crate::extended_routes::monitoring_reset))
+            // Performance alert routes
+            .route("/api/monitoring/alerts", get(crate::extended_routes::monitoring_alerts))
+            .route("/api/monitoring/alerts/rules", get(crate::extended_routes::monitoring_alert_rules))
+            .route("/api/monitoring/alerts/check", post(crate::extended_routes::monitoring_alerts_check))
+            .route("/api/monitoring/alerts/clear", post(crate::extended_routes::monitoring_alerts_clear))
+            // Report scheduler routes
+            .route("/api/monitoring/reports", get(crate::extended_routes::monitoring_reports_list))
+            .route("/api/monitoring/reports/generate", post(crate::extended_routes::monitoring_reports_generate))
+            // Tracing routes
+            .route("/api/tracing/recent", get(crate::extended_routes::tracing_recent))
+            .route("/api/tracing/stats", get(crate::extended_routes::tracing_stats))
+            .route("/api/tracing/:trace_id", get(crate::extended_routes::tracing_get))
+            .route("/api/tracing/otlp", get(crate::extended_routes::tracing_otlp_export))
+            // Security presets routes
+            .route("/api/security/presets", get(crate::extended_routes::security_presets_list))
+            .route("/api/security/presets/:bundle/apply", post(crate::extended_routes::security_presets_apply))
             .layer(from_fn_with_state(auth_middleware, require_token));
 
         Router::new()
             .merge(public_routes)
             .merge(protected_routes)
+            .layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                crate::tracing_middleware::tracing_middleware,
+            ))
+            .layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                crate::auto_metrics::auto_metrics_middleware,
+            ))
             .layer(CorsLayer::permissive())
             .layer(TraceLayer::new_for_http())
             .layer(RequestBodyLimitLayer::new(16 * 1024 * 1024)) // 16 MiB max body
@@ -198,7 +333,8 @@ mod tests {
         let billing = Arc::new(nexora_billing::BillingService::new(core.clone()));
         let workflow = Arc::new(nexora_workflow::WorkflowService::new(core.clone()));
         let cluster = Arc::new(nexora_cluster::ClusterService::new(core.clone()));
-        GatewayServer::new(core, auth, marketplace, billing, workflow, cluster)
+        let notifications = Arc::new(nexora_notifications::NotificationService::new());
+        GatewayServer::new(core, auth, marketplace, billing, workflow, cluster, notifications)
     }
 
     #[tokio::test]

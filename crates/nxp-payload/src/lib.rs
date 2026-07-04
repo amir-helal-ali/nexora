@@ -1,8 +1,8 @@
-//! NXP payload layer.
+//! طبقة حمولة NXP.
 //!
-//! See RFC §2.4. Payloads are binary-serialized; MessagePack is the default,
-//! CBOR is selectable per-frame via [`FrameFlags::COMPACT`].
-//! JSON is forbidden for internal NXP communication.
+//! انظر RFC §2.4. الحمولات مُتسلسلة ثنائياً؛ MessagePack هو الافتراضي،
+//! و CBOR قابل للاختيار لكل إطار عبر [`FrameFlags::COMPACT`].
+//! JSON ممنوع للتواصل الداخلي NXP.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]

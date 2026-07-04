@@ -1,21 +1,20 @@
-//! Nexora Core — the cloud operating system kernel.
+//! Nexora Core — نواة نظام التشغيل السحابي.
 //!
-//! See Nexora Engineering Specification, Part 4. The Core is responsible
-//! for loading, managing, securing, monitoring, and orchestrating every
-//! platform capability. Nothing inside the platform runs independently of
-//! the Core.
+//! انظر مواصفة Nexora الهندسية، الجزء 4. النواة مسؤولة عن تحميل، إدارة،
+//! تأمين، مراقبة، وتنسيق كل قدرة في المنصة. لا شيء داخل المنصة يعمل
+//! بشكل مستقل عن النواة.
 //!
-//! # Subsystems
+//! # الأنظمة الفرعية
 //!
-//! - [`modules`]: Module Manager — install/enable/disable/upgrade lifecycle
-//! - [`registry`]: Service Registry — logical-name → service lookup
-//! - [`events`]: Event Bus — durable, replayable, ordered events
-//! - [`permissions`]: Permission Engine — hierarchical RBAC + ABAC
-//! - [`plugins`]: Plugin System — signed, sandboxed, resource-limited
-//! - [`config`]: Configuration Manager — dynamic reload
-//! - [`secrets`]: Secret Manager — encrypted, versioned, audited
-//! - [`health`]: Health Monitor — liveness, readiness, stats
-//! - [`handler`]: Core NXP Handler — dispatches NXP commands to subsystems
+//! - [`modules`]: مدير الوحدات — دورة حياة تثبيت/تفعيل/تعطيل/ترقية
+//! - [`registry`]: سجل الخدمات — بحث اسم منطقي ← خدمة
+//! - [`events`]: ناقل الأحداث — أحداث دائمة، قابلة لإعادة التشغيل، مرتبة
+//! - [`permissions`]: محرك الصلاحيات — RBAC + ABAC هرمي
+//! - [`plugins`]: نظام المكونات — موقّع، في صندوق حماية، بموارد محدودة
+//! - [`config`]: مدير التكوين — إعادة تحميل ديناميكية
+//! - [`secrets`]: مدير الأسرار — مشفّر، موسوم بالنسخ، مدقّق
+//! - [`health`]: مراقب الصحة — حياة، جاهزية، إحصائيات
+//! - [`handler`]: معالج NXP للنواة — يوجّه أوامر NXP إلى الأنظمة الفرعية
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]

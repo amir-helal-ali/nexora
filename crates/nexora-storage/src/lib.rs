@@ -1,24 +1,28 @@
-//! Nexora Persistent Storage — SQLite backend.
+//! تخزين Nexora الدائم — PostgreSQL (أساسي) + SQLite (بديل طرفي).
 //!
-//! Provides durable storage for:
-//! - Users (with Argon2 password hashes)
-//! - Events (the source of truth — event sourcing)
-//! - Packages (marketplace catalog)
+//! # الخلفيات
 //!
-//! # Design
+//! - **PostgreSQL** (افتراضي، أساسي): درجة إنتاج، يدعم القراءات/الكتابات
+//!   المتزامنة، البحث بالنص الكامل، JSONB. استخدم هذا لأي نشر لديه أكثر
+//!   من عملية Core واحدة أو يتوقع >100 طلب/ثانية.
+//! - **SQLite** (طرفي): مضمّن، بلا إعداد، ملف واحد. استخدم هذا لعمليات نشر
+//!   Tier-1 منخفضة الموارد (الجزء 10) حيث تشغيل خادم PostgreSQL منفصل
+//!   غير ممكن.
 //!
-//! Uses a **write-through cache** pattern:
-//! - SQLite is the durability layer (writes go to disk)
-//! - In-memory stores remain the primary read path (fast)
-//! - On startup, state is loaded from SQLite into memory
+//! كلتا الخلفيتين تنفّذان نفس المخطط المنطقي ونفس واجهات المخازن،
+//! لذا التبديل هو تغيير تكوين.
 //!
-//! This gives us durability without sacrificing read performance.
+//! # المخازن
 //!
-//! # Tier-1 (Edge) Appropriate
-//!
-//! SQLite is embedded (no external server), making it ideal for Tier-1
-//! low-resource deployments (Part 10). In Tier 2/3, swap with PostgreSQL
-//! using the same trait interface.
+//! | المخزن | PostgreSQL | SQLite |
+//! |-------|:---------:|:------:|
+//! | المستخدمون | ✅ `pg::PgUserStore` | ✅ `SqliteUserStore` |
+//! | الجلسات | ✅ `pg::PgSessionStore` | ❌ (في الذاكرة فقط) |
+//! | الأحداث | ✅ `pg::PgEventStore` | ✅ `SqliteEventStore` |
+//! | الحزم | ✅ `pg::PgPackageStore` | ✅ `SqlitePackageStore` |
+//! | الفوترة | ✅ `pg::PgBillingStore` | ✅ `SqliteBillingStore` |
+//! | التدقيق | ✅ `pg::PgAuditStore` | ❌ (في الذاكرة فقط) |
+//! | الأسرار | ✅ `pg::PgSecretStore` | ❌ (في الذاكرة فقط) |
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
@@ -28,6 +32,9 @@ pub mod events;
 pub mod packages;
 pub mod schema;
 pub mod users;
+
+#[cfg(feature = "postgres")]
+pub mod pg;
 
 pub use billing::SqliteBillingStore;
 pub use events::SqliteEventStore;

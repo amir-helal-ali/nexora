@@ -1,0 +1,28 @@
+[package]
+name = "nexora-graphql"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Nexora GraphQL endpoint — alternative to REST for flexible client queries"
+
+[dependencies]
+nxp-core = { path = "../nxp-core" }
+nexora-core = { path = "../nexora-core" }
+nexora-auth = { path = "../nexora-auth" }
+nexora-marketplace = { path = "../nexora-marketplace" }
+nexora-billing = { path = "../nexora-billing" }
+nexora-notifications = { path = "../nexora-notifications" }
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json = "1.0"
+async-graphql.workspace = true
+async-graphql-axum.workspace = true
+axum.workspace = true
+time.workspace = true
+uuid.workspace = true
+parking_lot.workspace = true
+futures-util = "0.3"
+async-stream = "0.3"

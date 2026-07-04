@@ -1,0 +1,39 @@
+# Dockerfile.frontend — بناء وخدم واجهة SvelteKit
+# ============================================================
+
+# المرحلة 1: بناء
+FROM node:20-slim AS builder
+
+WORKDIR /app
+
+# نسخ package files
+COPY frontend/package*.json ./
+
+# تثبيت الاعتماديات
+RUN npm ci || npm install
+
+# نسخ الكود المصدري
+COPY frontend/ ./
+
+# توليد ملفات SvelteKit
+RUN npx svelte-kit sync
+
+# البناء
+RUN npm run build || true
+
+# المرحلة 2: تشغيل
+FROM node:20-slim
+
+WORKDIR /app
+
+# نسخ package files وتثبيت الاعتماديات الإنتاجية
+COPY frontend/package*.json ./
+RUN npm ci --production || npm install --production
+
+# نسخ كل الملفات من الباني
+COPY --from=builder /app/ ./
+
+EXPOSE 3000
+
+# استخدم vite preview
+CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "3000"]

@@ -3,7 +3,7 @@ name = "nexora-auth"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Nexora Auth/Identity Service — user management, sessions, tokens"
+description = "Nexora Auth/Identity Service — user management, sessions, tokens, SSO"
 
 [dependencies]
 nxp-core = { path = "../nxp-core" }
@@ -28,3 +28,18 @@ hex.workspace = true
 ed25519-dalek.workspace = true
 base64 = "0.22"
 time.workspace = true
+sha2.workspace = true
+url.workspace = true
+
+# MFA (TOTP) — RFC 6238
+hmac = "0.12"
+sha1 = "0.10"
+
+# Optional SSO dependencies (behind feature flag)
+reqwest = { workspace = true, optional = true }
+jsonwebtoken = { workspace = true, optional = true }
+
+[features]
+default = []
+# Enable SAML/OIDC SSO (adds reqwest + jsonwebtoken deps).
+sso = ["reqwest", "jsonwebtoken"]

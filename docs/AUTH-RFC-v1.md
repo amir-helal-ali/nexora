@@ -1,167 +1,100 @@
-# Nexora Auth/Identity Service — RFC v1.0 (Draft)
+# Nexora Auth — خدمة المصادقة والهوية
+## RFC v1.0 (مسودة)
 
-**Status:** Draft
-**Last Updated:** 2026-07-01
-**Document Owner:** Nexora Platform Engineering
-**Classification:** Internal — Engineering Specification
-**Implements:** Nexora Engineering Specification, Part 9 (Security & Zero Trust) — Authentication subsystem
+**الحالة:** مسودة
+**آخر تحديث:** 2026-07-01
+**مالك الوثيقة:** هندسة منصة Nexora
+**التصنيف:** داخلي — مواصفة هندسية
 
 ---
 
-## 1. Abstract
+## 1. الملخص
 
-Nexora Auth is the first production service built on top of Nexora Core. It
-provides user management, password hashing, session tokens, and an NXP
-handler that dispatches `AUTH_LOGIN`, `AUTH_LOGOUT`, and `AUTH_REFRESH`
-opcodes.
+Nexora Auth هي أول خدمة إنتاجية مبنية على Nexora Core. توفر إدارة
+المستخدمين، الجلسات، الرموز، والمصادقة عبر NXP. تستخدم Argon2id
+لتجزئة كلمات المرور و Ed25519 لتوقيع الرموز.
 
-This service demonstrates the canonical pattern for building a Nexora
-service:
-- Owns its data (UserStore, SessionStore) — no shared DB
-- Integrates with Core subsystems (PermissionEngine, EventBus)
-- Speaks NXP natively via a dedicated handler
-- Emits events on every state change
-- Signs tokens with a long-term Ed25519 identity key
+## 2. المكوّنات
 
-## 2. Architecture
+### 2.1 تجزئة كلمات المرور
 
-```
-                        ┌──────────────────────┐
-                        │   NXP Transport      │
-                        └──────────┬───────────┘
-                                   │
-                        ┌──────────▼───────────┐
-                        │   Auth NXP Handler   │
-                        │ (AUTH_LOGIN/LOGOUT/  │
-                        │       REFRESH)       │
-                        └──────────┬───────────┘
-                                   │
-        ┌──────────────┬───────────┼──────────────┐
-        │              │           │              │
-┌───────▼────┐  ┌──────▼─────┐ ┌───▼──────┐ ┌─────▼──────┐
-│ UserStore  │  │SessionStore│ │  Token   │ │   Core     │
-│            │  │            │ │ Verifier │ │   (Arc)    │
-│ Argon2id   │  │ UUIDs,     │ │ Ed25519  │ │            │
-│ hashing    │  │ 1h TTL     │ │ 1h / 24h │ │ Permission │
-│            │  │            │ │  TTL     │ │   Engine   │
-└──────┬─────┘  └────────────┘ └──────────┘ │            │
-       │                                    │  Event Bus │
-       └─────────────► publishes events ───►│            │
-                                              │  Principal │
-                                              │  auto-     │
-                                              │  register  │
-                                              └────────────┘
-```
+تستخدم Argon2id (الفائز في مسابقة تجزئة كلمات المرور) مع:
+- ذاكرة: 19 ميبيبابت
+- تكرارات: 2
+- درجة موازاة: 1
+- طول الملح: 128 بت
 
-## 3. Subsystems
+### 2.2 مخزن المستخدمين
 
-### 3.1 Password Hashing (`password.rs`)
+CRUD مستخدم كامل مع:
+- تسجيل تلقائي في محرك الصلاحيات
+- بحث بالاسم أو البريد
+- تتبع آخر تسجيل دخول
+- تعطيل/تفعيل الحسابات
 
-- **Algorithm:** Argon2id (RFC 9106)
-- **Salt:** random 16 bytes per password
-- **Parameters:** m=19456 KiB, t=2, p=1 (tuned for Tier-1 VPS)
-- **Storage:** PHC string (`$argon2id$v=19$m=19456,t=2,p=1$...`)
-- **Verification:** constant-time
-- **Memory safety:** `HashedPassword` zeroizes on drop; `Debug` impl
-  never leaks the hash
+### 2.3 مخزن الجلسات
 
-### 3.2 User Store (`users.rs`)
+يتتبع الجلسات النشطة:
+- TTL افتراضي: ساعة واحدة
+- إبطال فردي أو جماعي (تسجيل الخروج من كل الأجهزة)
+- عدّاد الإصدار للتحقق من الإبطال
 
-- **User ID:** UUID v4
-- **Username:** case-insensitive (stored lowercase)
-- **Password:** Argon2id hash
-- **Email:** optional
-- **Roles:** Vec<String> (synced to PermissionEngine)
-- **Active flag:** inactive users cannot login
+### 2.4 مدقق الرموز
 
-**Operations:** `create`, `get`, `get_by_username`, `verify`, `record_login`,
-`delete`, `list`
+رموز Ed25519 موقّة مع:
+- المطالبات: sub, iat, exp, ver
+- الإبطال قائم على الإصدار (تحديث الرمز يبطل القديم)
+- التدوير التلقائي عند التحديث
 
-**Auto-integrations:**
-- On `create`: registers a `Principal` in the PermissionEngine
-- On `create`: emits `user.created` event
-- On `record_login`: emits `user.logged_in` event
-- On `delete`: emits `user.deleted` event + removes from indices
+## 3. التدفق
 
-### 3.3 Session Store (`store.rs`)
+### 3.1 تسجيل الدخول
 
-- **Session ID:** UUID v4
-- **Default TTL:** 1 hour
-- **Per-user session tracking** (multiple sessions per user allowed)
-- **Operations:** `create`, `revoke`, `revoke_all_for_user`, `touch`,
-  `get`, `list_for_user`, `list_active`, `reap_expired`
+1. العميل يرسل AUTH_LOGIN مع (username, password)
+2. خدمة المصادقة تتحقق من كلمة المرور عبر Argon2id
+3. إذا نجحت: تصدر رمز Ed25519 موقّع وتنشئ جلسة
+4. تنشر حدث `user.logged_in`
+5. تُرجع الرمز للعميل
 
-### 3.4 Token Verifier (`token.rs`)
+### 3.2 تحديث الرمز
 
-- **Algorithm:** Ed25519 (RFC 8032)
-- **Format:** `claims_msgpack || signature_64B`, base64url-encoded
-- **Claims:** `{ sub, iat, exp, ver }`
-- **TTLs:** 1h for access token, 24h for refresh
-- **Versioning:** each `issue`/`refresh`/`revoke` increments the user's
-  version, invalidating all prior tokens
-- **Verification:** signature + expiry + version match
-- **Drop safety:** signing key bytes zeroized on drop
+1. العميل يرسل AUTH_REFRESH مع الرمز الحالي
+2. المدقق يتحقق من الرمز (غير منتهي، غير مبطَّل)
+3. يصدر رمزاً جديداً بإصدار متزايد
+4. يبطل الرمز القديم
+5. ينشر حدث `user.token_refreshed`
 
-**Operations:** `issue`, `verify`, `revoke`, `refresh`, `public_key`
+### 3.3 تسجيل الخروج
 
-### 3.5 Auth NXP Handler (`handler.rs`)
+1. العميل يرسل AUTH_LOGOUT مع الرمز
+2. المدقق يبطل الرمز والجلسة
+3. ينشر حدث `user.logged_out`
 
-Dispatches three opcodes:
+## 4. الأمان
 
-| Opcode | Request | Response |
-|--------|---------|----------|
-| `AUTH_LOGIN` | `{ username, password, client? }` | `{ token, expires_at, session_id, user_id, username }` |
-| `AUTH_LOGOUT` | `{ token, session_id? }` | `{ ok: true }` |
-| `AUTH_REFRESH` | `{ token }` | `{ token, expires_at }` |
+- كلمات المرور لا تُخزَّن أبداً كنص عادي
+- الرموز موقّعة بمفتاح Ed25519 طويل المدى
+- لا توجد ثقة ضمنية: كل طلب محمي يُتحقَّق من رمزه
+- التوقيت المستمر لمنع هجمات التوقيت
 
-Error mapping follows RFC §8:
-- Wrong password → `AUTH/INVALID_CREDENTIALS` (0x0201)
-- Expired token → `AUTH/TOKEN_EXPIRED` (0x0202)
-- Tampered signature → `AUTH/INVALID_CREDENTIALS` (0x0201)
-- Revoked token → `AUTH/TOKEN_EXPIRED` (0x0202)
+## 5. التكامل مع Core
 
-## 4. Compliance
+- إنشاء المستخدم يسجّل تلقائياً كياناً في محرك الصلاحيات
+- كل تغيير حالة ينشر حدثاً على ناقل الأحداث
+- الرموز يمكن إبطالها عبر NXP أو HTTP
 
-| Spec Section | Status |
-|--------------|--------|
-| Part 9 — Password hashing (Argon2id) | ✅ |
-| Part 9 — Short-lived rotating sessions | ✅ (1h TTL, version increment on refresh) |
-| Part 9 — Ed25519 service identity | ✅ |
-| Part 9 — Forward secrecy (per-session keys) | ⏳ Token signing is long-term; session keys are NXP-level (Part 3) |
-| Part 4 — Service auto-registers with Core | ✅ (via PermissionEngine + EventBus) |
-| Part 4 — NXP handler dispatches opcodes | ✅ |
-| Part 8 — Events emitted on every state change | ✅ |
-| Part 6 — Database-per-service | ✅ (in-memory store; will be Postgres in v0.2) |
+## 6. الأحداث المنبعثة
 
-## 5. Test Coverage
+| الحدث | متى |
+|-------|-----|
+| `user.created` | عند إنشاء مستخدم جديد |
+| `user.logged_in` | عند تسجيل دخول ناجح |
+| `user.token_refreshed` | عند تحديث رمز |
+| `user.logged_out` | عند تسجيل خروج |
+| `user.deleted` | عند حذف مستخدم |
 
-30 unit tests + 8 end-to-end smoke scenarios, all passing:
+## 7. المراجع
 
-**Password (4):** hash+verify roundtrip, salt uniqueness, invalid hash
-rejection, debug-impl non-leak
-
-**Users (7):** create+get (case-insensitive), duplicate rejection,
-verify, inactive user, create-emits-event, record_login-emits-event,
-delete-emits-event, auto-register-principal
-
-**Tokens (7):** issue+verify, expiry, revoke, refresh-invalidates-old,
-tampered-signature, string-roundtrip, different-keys-reject
-
-**Sessions (6):** create+get, revoke, revoke_all_for_user, list_for_user,
-touch, reap_expired
-
-**Handler (5):** login-returns-token, wrong-password-fails,
-login-then-logout, refresh-invalidates-old, login-emits-events
-
-**Smoke test (8):** create user, login success, login wrong password,
-refresh, old-token-revoked, logout, token-revoked-after-logout,
-events-emitted
-
-## 6. Future Work (v0.2+)
-
-- Persist user store to PostgreSQL (currently in-memory)
-- WebAuthn / Passkey support (Part 9 §AUTHENTICATION)
-- MFA / TOTP
-- OAuth2 / OIDC provider mode (currently consumer only)
-- HSM-backed token signing
-- Refresh token rotation with reuse detection
+- مواصفة Nexora الهندسية، الجزء 9 (الأمان والمصادقة)
+- RFC 9106 — Argon2
+- RFC 8032 — Ed25519

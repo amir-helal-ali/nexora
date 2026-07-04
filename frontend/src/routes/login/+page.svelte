@@ -45,7 +45,7 @@
     <form class="card" onsubmit={handleSubmit}>
       <h2 class="text-lg font-medium mb-4">Sign in</h2>
 
-      <label class="block mb-3">
+      <span class="block mb-3">
         <span class="block text-xs text-nexora-muted mb-1">Username</span>
         <input
           class="input"
@@ -55,9 +55,9 @@
           autocomplete="username"
           disabled={loading}
         />
-      </label>
+      </span>
 
-      <label class="block mb-4">
+      <span class="block mb-4">
         <span class="block text-xs text-nexora-muted mb-1">Password</span>
         <input
           class="input"
@@ -67,7 +67,7 @@
           autocomplete="current-password"
           disabled={loading}
         />
-      </label>
+      </span>
 
       {#if error}
         <div class="mb-4 p-3 rounded-md bg-red-500/10 border border-red-500/20 text-sm text-red-400">

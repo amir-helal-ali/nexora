@@ -1,4 +1,16 @@
+# docker-compose.yml — Nexora Platform
+# ============================================================
+# يقوم بتشغيل:
+# - PostgreSQL (قاعدة البيانات الأساسية)
+# - Nexora Backend (البوابة + النواة)
+# - Nexora Frontend (SvelteKit + nginx)
+# - Prometheus (مراقبة المقاييس)
+# - Grafana (لوحات المراقبة)
+
 services:
+  # ============================================================
+  # PostgreSQL — قاعدة البيانات الأساسية
+  # ============================================================
   postgres:
     image: postgres:16-alpine
     environment:
@@ -15,6 +27,9 @@ services:
       timeout: 5s
       retries: 5
 
+  # ============================================================
+  # Nexora Backend — البوابة + النواة
+  # ============================================================
   backend:
     build:
       context: .
@@ -30,18 +45,22 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # ============================================================
+  # Nexora Frontend — SvelteKit + nginx
+  # ============================================================
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
     ports:
       - "3000:3000"
-    environment:
-      - BACKEND_URL=http://backend:8080
     depends_on:
       - backend
     restart: unless-stopped
 
+  # ============================================================
+  # Prometheus — مراقبة المقاييس
+  # ============================================================
   prometheus:
     image: prom/prometheus:latest
     ports:
@@ -53,6 +72,9 @@ services:
       - backend
     restart: unless-stopped
 
+  # ============================================================
+  # Grafana — لوحات المراقبة
+  # ============================================================
   grafana:
     image: grafana/grafana:latest
     ports:
@@ -66,6 +88,9 @@ services:
       - prometheus
     restart: unless-stopped
 
+# ============================================================
+# Volumes
+# ============================================================
 volumes:
   postgres_data:
   prometheus_data:

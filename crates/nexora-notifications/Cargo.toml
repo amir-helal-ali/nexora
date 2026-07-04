@@ -1,0 +1,46 @@
+[package]
+name = "nexora-notifications"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Nexora Notifications Service — multi-channel notifications (email, web push, in-app)"
+
+[features]
+default = ["email", "webpush"]
+# Email via SMTP (lettre)
+email = ["lettre"]
+# Web Push (RFC 8291 + VAPID)
+webpush = ["p256", "base64ct"]
+# SMS via Twilio REST API
+sms = []
+# Slack incoming webhooks
+slack = []
+# Generic webhook adapter (always available — no external deps)
+webhook = []
+
+[dependencies]
+nxp-core = { path = "../nxp-core" }
+nexora-core = { path = "../nexora-core" }
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json = "1.0"
+parking_lot.workspace = true
+async-trait.workspace = true
+uuid.workspace = true
+time.workspace = true
+base64 = "0.22"
+sha2.workspace = true
+hex.workspace = true
+url.workspace = true
+
+# Email
+lettre = { workspace = true, optional = true }
+# Web Push (VAPID + ECDH)
+p256 = { workspace = true, optional = true }
+base64ct = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros", "rt-multi-thread"] }

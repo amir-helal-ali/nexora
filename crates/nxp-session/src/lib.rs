@@ -1,8 +1,7 @@
-//! NXP session layer.
+//! طبقة جلسة NXP.
 //!
-//! See RFC §2.2. A session is established by a `HELLO` command immediately
-//! after the QUIC handshake. This module provides the handshake protocol,
-//! session state, and heartbeat logic.
+//! انظر RFC §2.2. تُنشأ الجلسة بأمر `HELLO` فوراً بعد مصافحة QUIC.
+//! هذه الوحدة توفر بروتوكول المصافحة، حالة الجلسة، ومنطق نبض القلب.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]

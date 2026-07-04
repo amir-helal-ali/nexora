@@ -3,7 +3,14 @@ name = "nexora-storage"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Nexora persistent storage — SQLite backend for users, events, packages"
+description = "Nexora persistent storage — PostgreSQL (primary) + SQLite (edge) backends"
+
+[features]
+# PostgreSQL is the default primary database (per user requirement).
+# SQLite remains as an optional edge-device fallback.
+default = ["postgres"]
+postgres = ["tokio-postgres", "bb8", "bb8-postgres", "postgres-types"]
+sqlite = []
 
 [dependencies]
 nxp-core = { path = "../nxp-core" }
@@ -23,3 +30,9 @@ rusqlite.workspace = true
 uuid.workspace = true
 time.workspace = true
 hex.workspace = true
+
+# PostgreSQL (primary database)
+tokio-postgres = { workspace = true, optional = true }
+bb8 = { workspace = true, optional = true }
+bb8-postgres = { workspace = true, optional = true }
+postgres-types = { workspace = true, optional = true }

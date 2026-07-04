@@ -1,0 +1,46 @@
+# Dockerfile.backend — بناء متعدد المراحل لخادم Nexora
+# ============================================================
+
+# المرحلة 1: بناء
+# استخدام latest لأن بعض الـ crates تتطلب Rust 1.89+
+FROM rust:latest AS builder
+
+WORKDIR /app
+
+# تثبيت تبعيات النظام
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# نسخ ملفات المشروع (Cargo.lock موجود الآن في المستودع)
+COPY Cargo.toml Cargo.lock ./
+COPY crates/ ./crates/
+COPY demo/ ./demo/
+
+# بناء (release mode)
+RUN cargo build --release --bin gateway-demo
+
+# المرحلة 2: تشغيل
+FROM debian:bookworm-slim
+
+WORKDIR /app
+
+# تثبيت مكتبات التشغيل
+RUN apt-get update && apt-get install -y \
+    libssl3 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# نسخ الثنائي
+COPY --from=builder /app/target/release/gateway-demo /app/gateway-demo
+
+# المنفذ
+EXPOSE 8080
+
+# متغيرات البيئة
+ENV NEXORA_BIND=0.0.0.0:8080
+ENV RUST_LOG=info
+
+# التشغيل
+CMD ["/app/gateway-demo", "0.0.0.0:8080"]
