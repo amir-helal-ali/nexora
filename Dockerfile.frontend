@@ -1,39 +1,33 @@
-# Dockerfile.frontend — بناء وخدم واجهة SvelteKit
+# Dockerfile.frontend — nginx + reverse proxy للـ API
 # ============================================================
 
-# المرحلة 1: بناء
+# المرحلة 1: بناء SvelteKit
 FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# نسخ package files
 COPY frontend/package*.json ./
-
-# تثبيت الاعتماديات
 RUN npm ci || npm install
 
-# نسخ الكود المصدري
 COPY frontend/ ./
-
-# توليد ملفات SvelteKit
 RUN npx svelte-kit sync
-
-# البناء
 RUN npm run build || true
 
-# المرحلة 2: تشغيل
-FROM node:20-slim
+# المرحلة 2: nginx يخدم الملفات الثابتة + reverse proxy
+FROM nginx:alpine
 
-WORKDIR /app
+# نسخ ملفات البناء (إن وُجدت)
+COPY --from=builder /app/build /usr/share/nginx/html
+# نسخ باقي ملفات frontend (لـ vite preview كبديل)
+COPY --from=builder /app/ /app/
 
-# نسخ package files وتثبيت الاعتماديات الإنتاجية
-COPY frontend/package*.json ./
-RUN npm ci --production || npm install --production
+# تثبيت Node للـ vite preview
+RUN apk add --no-cache nodejs npm
 
-# نسخ كل الملفات من الباني
-COPY --from=builder /app/ ./
+# نسخ إعدادات nginx
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 3000
 
-# استخدم vite preview
-CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "3000"]
+# استخدم nginx كـ reverse proxy: يخدم الملفات الثابتة + يوجّه /api/ إلى backend
+CMD ["nginx", "-g", "daemon off;"]
