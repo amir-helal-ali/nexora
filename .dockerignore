@@ -1,37 +1,42 @@
-# .dockerignore — استثناء ملفات غير ضرورية من سياق البناء
-# ============================================================
-
-# Rust
+# ──── ملفات البناء المؤقتة ────
 target/
+**/target/
 **/*.rs.bk
 
-# Node
-frontend/node_modules/
-frontend/.svelte-kit/
-frontend/build/
-frontend/.env
-
-# Git
+# ──── Git و IDE ────
 .git/
 .gitignore
-
-# Docker
-Dockerfile.*
-docker-compose.yml
-
-# Docs (لا حاجة لها في البناء)
-docs/
-deploy/
-scripts/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# IDE
+.github/
 .vscode/
 .idea/
 *.swp
+*.swo
+.DS_Store
 
-# Logs
+# ──── Node ────
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/build/
+frontend/dist/
+frontend/package-lock.json
+
+# ──── Docker ────
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# ──── التوثيق و السكربتات (غير مطلوبة في صورة البناء) ────
+docs/
+*.md
+LICENSE
+CHANGELOG.md
+README.md
+
+# ──── البيئة ────
+.env
+.env.*
 *.log
+
+# ──── ملفات النشر ────
+deploy/
+scripts/

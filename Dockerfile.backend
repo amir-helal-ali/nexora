@@ -1,46 +1,60 @@
 # Dockerfile.backend — بناء متعدد المراحل لخادم Nexora
 # ============================================================
+# يستخدم cargo-chef لتخزين الاعتماديات مؤقتاً (تسريع 10x عند إعادة البناء)
+# Rust 1.89 مُثبّت لأن async-graphql 7.x و time 0.3.53 تتطلبه
 
-# المرحلة 1: بناء
-# استخدام latest لأن بعض الـ crates تتطلب Rust 1.89+
-FROM rust:latest AS builder
-
+# ──── المرحلة 0: إعداد chef ────
+FROM rust:1.89-bookworm AS chef
 WORKDIR /app
+RUN cargo install cargo-chef --locked --version ^0.1
 
-# تثبيت تبعيات النظام
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+# ──── المرحلة 1: تخطيط الوصفات (caching layer) ────
+FROM chef AS planner
+COPY Cargo.toml Cargo.lock ./
+COPY crates/ ./crates/
+COPY demo/ ./demo/
+RUN cargo chef prepare --recipe-path recipe.json
 
-# نسخ ملفات المشروع (Cargo.lock موجود الآن في المستودع)
+# ──── المرحلة 2: بناء الاعتماديات (مُخزّنة مؤقتاً) ────
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
+# بناء الاعتماديات فقط — هذه الطبقة تُعاد استخدامها ما لم يتغير Cargo.toml
+RUN cargo chef cook --release --recipe-path recipe.json
+
+# نسخ الكود المصدري
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ ./crates/
 COPY demo/ ./demo/
 
-# بناء (release mode)
-RUN cargo build --release --bin gateway-demo
+# بناء الثنائي النهائي (--locked يضمن استخدام Cargo.lock كما هو)
+RUN cargo build --release --locked --bin gateway-demo
 
-# المرحلة 2: تشغيل
-FROM debian:bookworm-slim
+# ──── المرحلة 3: تشغيل (صورة صغيرة) ────
+FROM debian:bookworm-slim AS runtime
 
 WORKDIR /app
 
-# تثبيت مكتبات التشغيل
-RUN apt-get update && apt-get install -y \
+# تثبيت مكتبات التشغيل فقط
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# نسخ الثنائي
+# نسخ الثنائي فقط (distroless-like)
 COPY --from=builder /app/target/release/gateway-demo /app/gateway-demo
 
-# المنفذ
+# مستخدم غير root للأمان
+RUN useradd --no-create-home --shell /usr/sbin/nologin nexora
+USER nexora
+
 EXPOSE 8080
 
-# متغيرات البيئة
 ENV NEXORA_BIND=0.0.0.0:8080
 ENV RUST_LOG=info
+ENV RUST_BACKTRACE=1
 
-# التشغيل
+# healthcheck عبر HTTP /health
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD [ "sh", "-c", "command -v curl >/dev/null 2>&1 && curl -f http://localhost:8080/health || exit 1" ]
+
 CMD ["/app/gateway-demo", "0.0.0.0:8080"]

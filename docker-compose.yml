@@ -14,6 +14,13 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
 
   backend:
     build:
@@ -24,11 +31,24 @@ services:
     environment:
       - NEXORA_BIND=0.0.0.0:8080
       - RUST_LOG=info
+      - RUST_BACKTRACE=1
       - DATABASE_URL=postgres://nexora:nexora_secret@postgres:5432/nexora
+      - NEXORA_JWT_SECRET=change_me_in_production_please_use_long_random_string
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "command -v curl >/dev/null 2>&1 && curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "2.0"
 
   frontend:
     build:
@@ -39,19 +59,37 @@ services:
     environment:
       - BACKEND_URL=http://backend:8080
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
 
   prometheus:
     image: prom/prometheus:latest
     ports:
       - "9090:9090"
     volumes:
-      - ./docs/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./docs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
 
   grafana:
     image: grafana/grafana:latest
@@ -59,12 +97,19 @@ services:
       - "3001:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./docs/grafana-dashboard.json:/etc/grafana/provisioning/dashboards/nexora.json
+      - ./docs/grafana-dashboard.json:/etc/grafana/provisioning/dashboards/nexora.json:ro
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_started
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
 
 volumes:
   postgres_data:

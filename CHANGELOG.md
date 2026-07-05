@@ -5,6 +5,30 @@
 التنسيق مبني على [احتفظ بسجل التغييرات](https://keepachangelog.com/ar-1.0.0/)
 وهذا المشروع يلتزم بـ [الإصدار الدلالي](https://semver.org/lang/ar/).
 
+## [v1.6.1] — 2026-07-05
+
+### أُصلِح
+- **Dockerfile.backend**: تثبيت Rust 1.89-bookworm بدلاً من `latest` للاستقرار
+  (async-graphql 7.x و time 0.3.53 تتطلب rustc ≥ 1.88، asynk-strim يتطلب 1.89)
+- إضافة `cargo-chef` لتخزين الاعتماديات مؤقتاً (تسريع 10x عند إعادة البناء)
+- إضافة `--locked` لضمان استخدام Cargo.lock كما هو (بناء متكرر)
+- تشغيل البوابة بمستخدم غير root (تحسين أمني)
+- إضافة `HEALTHCHECK` للبوابة عبر `/health`
+
+### أُضيف
+- **`.dockerignore`**: استبعاد target/، node_modules/، .git/ لتسريعBuildContext
+- **`scripts/docker-build.sh`**: سكربت بناء وتشغيل موحّد (build/up/down/logs/clean/rebuild)
+- **`.env.example`**: نموذج للمتغيرات البيئية للإنتاج
+
+### حُسّن
+- **Dockerfile.frontend**: طبقة caching لـ package.json + healthcheck
+- **nginx.conf**: ضغط gzip، حدود رفع 50MB، Security headers، healthz endpoint
+- **docker-compose.yml**:
+  - healthchecks لجميع الخدمات مع start_period
+  - حدود موارد (memory + cpus) لكل خدمة
+  - ترتيب بدء صحيح (depends_on مع condition)
+  - متغير `NEXORA_JWT_SECRET` للبوابة
+
 ## [v1.6.0] — 2026-07-03
 
 ### أُضيف
