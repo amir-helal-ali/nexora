@@ -5,6 +5,19 @@
 التنسيق مبني على [احتفظ بسجل التغييرات](https://keepachangelog.com/ar-1.0.0/)
 وهذا المشروع يلتزم بـ [الإصدار الدلالي](https://semver.org/lang/ar/).
 
+## [v1.6.3] — 2026-07-05
+
+### أُصلِح (حرج)
+- **healthcheck**: ثلاثة أخطاء في الفحص السابق جعلت backend دائماً "unhealthy":
+  1. المسار كان `/health` بينما الصحيح `/api/health`
+     (`crates/nexora-gateway/src/server.rs:127`)
+  2. `debian:bookworm-slim` لا يحتوي على `curl` — الشرط
+     `command -v curl >/dev/null 2>&1 && curl ...` كان يفشل صامتاً
+  3. `start_period=30s` لم يكن كافياً لتهيئة tracing + bootstrap admin/viewer +
+     publish demo package. رُفع إلى `60s` مع 5 retries بفاصل 15s
+- **Dockerfile.backend**: تثبيت `curl` صراحةً في runtime stage
+- **docker-compose.yml**: مزامنة healthcheck مع Dockerfile
+
 ## [v1.6.2] — 2026-07-05
 
 ### أُصلِح (حرج)
