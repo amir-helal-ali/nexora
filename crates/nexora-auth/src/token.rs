@@ -96,7 +96,10 @@ impl SessionToken {
     }
 
     /// Encode to a URL-safe base64 string.
-    pub fn to_string(&self) -> String {
+    ///
+    /// Note: `Display` is also implemented and produces the same output,
+    /// so `token.to_string()` (via Display) works equivalently.
+    pub fn encode(&self) -> String {
         use base64::Engine;
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(self.to_bytes())
     }
@@ -113,7 +116,7 @@ impl SessionToken {
 
 impl fmt::Display for SessionToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.to_string())
+        f.write_str(&self.encode())
     }
 }
 
@@ -288,7 +291,7 @@ mod tests {
     fn token_string_roundtrip() {
         let v = verifier();
         let token = v.issue("user-1", DEFAULT_TOKEN_TTL);
-        let s = token.to_string();
+        let s = token.encode();
         let parsed = SessionToken::from_str(&s).unwrap();
         assert_eq!(token, parsed);
     }

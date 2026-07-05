@@ -5,7 +5,7 @@
 //! (with the `signature` field blanked out). The signature is verified
 //! against the owner's declared public key.
 
-use crate::package::{compute_integrity_hash, PackageManifest};
+use crate::package::PackageManifest;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use sha2::{Digest, Sha256};
 

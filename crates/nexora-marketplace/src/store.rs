@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
-use time::OffsetDateTime;
 
 /// Trust scores for a package (0-100 each).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]

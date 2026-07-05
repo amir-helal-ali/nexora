@@ -301,12 +301,6 @@ fn extract_attributes(xml: &str) -> std::collections::HashMap<String, Vec<String
         let value_xml = &xml[value_start..value_end];
         // Extract all <saml:AttributeValue>...</saml:AttributeValue> texts.
         let mut values = Vec::new();
-        let mut vc = 0;
-        while let Some(vp) = value_xml[cursor.min(value_xml.len() - 1)..].find("<saml:AttributeValue>") {
-            let _ = vp; // silence
-            break;
-        }
-        // Simpler: scan the whole value_xml for all AttributeValue tags.
         let mut sc = 0;
         while let Some(sp) = value_xml[sc..].find("<saml:AttributeValue>") {
             let ts = sc + sp + "<saml:AttributeValue>".len();

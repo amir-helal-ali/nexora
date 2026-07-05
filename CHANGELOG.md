@@ -5,6 +5,37 @@
 التنسيق مبني على [احتفظ بسجل التغييرات](https://keepachangelog.com/ar-1.0.0/)
 وهذا المشروع يلتزم بـ [الإصدار الدلالي](https://semver.org/lang/ar/).
 
+## [v1.6.4] — 2026-07-05
+
+### أُصلِح (clippy errors)
+- **nexora-auth/src/token.rs**: إزالة `to_string()` الجوهرية التي كانت تُخفي
+  `impl Display` (clippy error: `should_implement_trait`). أُعيدت تسميتها إلى
+  `encode()`. `Display` ينتج نفس الناتج، لذا `token.to_string()` ما زال يعمل.
+- **nexora-auth/src/sso/saml.rs**: إزالة حلقة `while` ميتة كانت تنكسر فوراً
+  (clippy error: `this loop never actually loops`). الكود الفعلي كان في حلقة
+  ثانية بعدها مباشرة.
+
+### حُسّن (clippy warnings)
+- **nexora-marketplace**: إزالة 6 imports غير مستخدمة في `handler.rs`،
+  `install.rs`، `signature.rs`، `store.rs`
+- **nexora-graphql/src/schema.rs**: إزالة `EventSubscriber` غير المستخدم
+- **nexora-loadtest/src/runner.rs**: إزالة `Arc` و `Duration` غير المستخدمين
+  + تسمية `per_worker` بـ `_per_worker`
+- **nexora-marketplace/src/install.rs**: إزالة `mut` غير الضروري من معامل `steps`
+
+### أُضيف
+- **scripts/smoke-test.sh**: سكربت اختبار شامل للـ 13 endpoint رئيسي
+  (Health, Login, Ping, Events, Marketplace, Cluster, Workflows, Notifications,
+  Billing, GraphQL, OpenAPI, Auth-fail, Wrong-password)
+
+### التحقق
+- ✅ `cargo check --workspace --locked` — نظيف
+- ✅ 872 اختبار يناج (17+4+13+6+2+42+85+66+17+21+24+74+9+26+22+51+40+90+68+46+21+10+0+128)
+- ✅ `cargo clippy` — 0 أخطاء (بعض التحذيرات غير الحرجة متبقية)
+- ✅ بناء Frontend محلياً يُنتج `build/index.html` بنجاح
+- ✅ بناء `gateway-demo` release (9.8MB)
+- ✅ 13/13 smoke test يناج على البوابة الحيّة
+
 ## [v1.6.3] — 2026-07-05
 
 ### أُصلِح (حرج)

@@ -9,12 +9,11 @@
 //! generic command dispatch) with `command: "marketplace.*"`.
 
 use crate::install::InstallReport;
-use crate::package::{Package, PackageManifest, Visibility};
+use crate::package::PackageManifest;
 use crate::store::TrustScore;
 use crate::MarketplaceService;
 use nxp_core::NxpError;
 use nxp_core::error::protocol_codes;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 /// The Marketplace handler. Owns a reference to the service.

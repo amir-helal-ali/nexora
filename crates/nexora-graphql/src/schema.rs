@@ -7,7 +7,7 @@ use async_graphql::{
     Context, Object, Schema, Subscription,
 };
 use futures_util::Stream;
-use nexora_core::events::{Event as CoreEvent, EventSubscriber};
+use nexora_core::events::Event as CoreEvent;
 use nexora_core::NexoraCore;
 use std::sync::Arc;
 

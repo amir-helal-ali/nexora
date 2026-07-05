@@ -2,8 +2,7 @@
 
 use crate::config::LoadTestConfig;
 use crate::result::{build_result, LoadTestResult};
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 /// مشغّل اختبار التحمل.
 pub struct LoadTest;
@@ -17,7 +16,7 @@ impl LoadTest {
     pub async fn run(config: LoadTestConfig) -> LoadTestResult {
         let start = Instant::now();
 
-        let per_worker = config.requests_per_worker();
+        let _per_worker = config.requests_per_worker();
         let mut latencies: Vec<u64> = Vec::with_capacity(config.total);
         let mut successful = 0;
         let mut failed = 0;

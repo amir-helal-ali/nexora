@@ -17,13 +17,12 @@
 //!
 //! If any step fails → installation is rejected.
 
-use crate::package::{Package, PackageManifest};
+use crate::package::PackageManifest;
 use crate::signature::verify_package_signature;
 use crate::store::PackageStore;
 use crate::version::Version;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::sync::Arc;
 use time::OffsetDateTime;
 
 /// Error from the installation pipeline.
@@ -335,7 +334,7 @@ impl InstallPipeline {
 
     fn fail(
         &self,
-        mut steps: Vec<StepResult>,
+        steps: Vec<StepResult>,
         package_id: &str,
         version: &Version,
         err: InstallError,
