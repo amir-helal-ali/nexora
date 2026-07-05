@@ -1,7 +1,7 @@
-# Dockerfile.frontend — SvelteKit build + nginx reverse proxy
+# Dockerfile.frontend — SvelteKit SPA build + nginx reverse proxy
 # ============================================================
 
-# ──── المرحلة 1: بناء SvelteKit ────
+# ──── المرحلة 1: بناء SvelteKit (adapter-static → SPA) ────
 FROM node:20-slim AS builder
 
 WORKDIR /app
@@ -13,9 +13,16 @@ RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 # نسخ باقي المصدر
 COPY frontend/ ./
 
-# توليد أنواع SvelteKit + بناء
+# توليد أنواع SvelteKit
 RUN npx svelte-kit sync
-RUN npm run build || echo "WARN: build produced partial output"
+
+# بناء SPA ثابت (يفشل البناء عند وجود أخطاء)
+RUN npm run build
+
+# التحقق من وجود مجلد build (يفشل البناء إذا لم يُنشأ)
+RUN test -f /app/build/index.html && \
+    echo "✅ build/index.html موجود" || \
+    (echo "❌ build/index.html غير موجود — فشل بناء SvelteKit" && exit 1)
 
 # ──── المرحلة 2: nginx يخدم الملفات الثابتة + reverse proxy ────
 FROM nginx:alpine AS runtime
