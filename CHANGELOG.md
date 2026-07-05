@@ -5,6 +5,20 @@
 التنسيق مبني على [احتفظ بسجل التغييرات](https://keepachangelog.com/ar-1.0.0/)
 وهذا المشروع يلتزم بـ [الإصدار الدلالي](https://semver.org/lang/ar/).
 
+## [v1.6.2] — 2026-07-05
+
+### أُصلِح (حرج)
+- **frontend/svelte.config.js**: استبدال `@sveltejs/adapter-auto` بـ
+  `@sveltejs/adapter-static` — adapter-auto لا يُنشئ مجلد `build/` إلا في
+  منصات معروفة (Vercel/Netlify)، مما جعل بناء Docker للواجهة يفشل صامتاً
+  بسبب سطر `npm run build || echo "WARN..."` الذي يخفي الأخطاء
+- **Dockerfile.frontend**: إزالة `|| echo "WARN..."` (البناء يفشل بصوت عالٍ
+  الآن عند وجود أخطاء) + إضافة تحقق `test -f build/index.html`
+
+### الاختبار
+- تم اختبار البناء محلياً بـ Node 24 + npm 11 — يُنتج `build/index.html` ✓
+- SPA fallback يعمل عبر `try_files $uri $uri/ /index.html` في nginx
+
 ## [v1.6.1] — 2026-07-05
 
 ### أُصلِح
